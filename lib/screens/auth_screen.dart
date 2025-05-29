@@ -502,7 +502,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isLoginMode ? 'Đăng nhập' : 'Đăng ký'),
+        title: Text('DIFFRHYTHM AI'),
         backgroundColor: const Color(0xFFFFC0CB),
       ),
       body: SingleChildScrollView(
@@ -510,8 +510,8 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Chào mừng!',
+             Text(
+              _isLoginMode ? 'Đăng nhập' : 'Đăng ký',
               style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),

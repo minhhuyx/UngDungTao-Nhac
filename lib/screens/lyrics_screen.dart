@@ -17,6 +17,7 @@ class LyricsHistoryManager {
     required String language,
     required String theme,
     required String tags,
+    required String category, // Thêm category để phân biệt "my_songs" hoặc "favorites"
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -58,6 +59,7 @@ class LyricsHistoryManager {
         'language': language,
         'theme': theme,
         'tags': tags,
+        'category': category, // Lưu category vào dữ liệu
         'created_at': ServerValue.timestamp,
       });
       print('Đã lưu dữ liệu vào: ${newLyricsRef.key}');
@@ -100,6 +102,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
   final _tagsMethod2FocusNode = FocusNode();
 
   final LyricsHistoryManager _historyManager = LyricsHistoryManager();
+
+  final highlightColor = const Color(0xFFADD8E6);
 
   // Danh sách các mô hình AI
   final List<String> _models = [
@@ -283,10 +287,12 @@ class _LyricsScreenState extends State<LyricsScreen> {
   }
 
   // Hàm lưu lời bài hát vào Firebase
+  // Hàm lưu lời bài hát vào Firebase
+  // Hàm lưu lời bài hát vào Firebase
   Future<void> _saveLyrics() async {
     if (_generatedLyrics.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No lyrics to save')),
+        const SnackBar(content: Text('Không có lời bài hát để lưu')),
       );
       return;
     }
@@ -299,14 +305,15 @@ class _LyricsScreenState extends State<LyricsScreen> {
         language: _selectedLanguage,
         theme: _currentTheme,
         tags: _currentTags,
+        category: 'favorites', // Đặt category là "favorites"
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lyrics saved to history!')),
+        const SnackBar(content: Text('Đã lưu lời bài hát vào lịch sử!')),
       );
     } catch (e) {
-      print('Error saving lyrics: $e');
+      print('Lỗi khi lưu lời bài hát: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving lyrics: $e')),
+        SnackBar(content: Text('Lỗi khi lưu lời bài hát: $e')),
       );
     }
   }
@@ -329,8 +336,25 @@ class _LyricsScreenState extends State<LyricsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Lyrics Generate"),
-        backgroundColor: const Color(0xFFFFC0CB),
+        title: const Text('My App'),
+        backgroundColor: highlightColor,
+        actions: [
+          Builder(
+            builder: (context) {
+              final double appBarHeight = AppBar().preferredSize.height;
+              final double imageHeight = appBarHeight * 10.0;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Image.asset(
+                  'assets/logo.png',
+                  height: imageHeight,
+                  fit: BoxFit.contain,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
@@ -339,12 +363,12 @@ class _LyricsScreenState extends State<LyricsScreen> {
           children: [
             // Notice Card
             Card(
-              color: const Color(0xFFFFC0CB),
+              color: const Color(0xFFADD8E6),
               elevation: 6,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
                 side: isDarkTheme
-                    ? const BorderSide(color: Color(0xFFFFC0CB), width: 1.5)
+                    ? const BorderSide(color: Color(0xFFADD8E6), width: 1.5)
                     : BorderSide.none,
               ),
               child: ExpansionTile(
@@ -356,7 +380,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     color: Colors.white,
                   ),
                 ),
-                collapsedBackgroundColor: const Color(0xFFFFC0CB),
+                collapsedBackgroundColor: const Color(0xFFADD8E6),
                 shape: const Border(),
                 collapsedShape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -378,11 +402,10 @@ class _LyricsScreenState extends State<LyricsScreen> {
             const SizedBox(height: 15),
             // Input Card
             Card(
+              color: isDarkTheme ? Colors.black : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: isDarkTheme
-                    ? const BorderSide(color: Color(0xFFFFC0CB), width: 1.0)
-                    : BorderSide.none,
+                side: const BorderSide(color: Color(0xFFADD8E6), width: 1.0)
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -412,7 +435,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
@@ -439,18 +462,18 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           enabledBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 1.0,
                             ),
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
-                          focusColor: const Color(0xFFFFC0CB),
+                          focusColor: const Color(0xFFADD8E6),
                         ),
                       ),
                     ),
@@ -469,7 +492,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
@@ -495,18 +518,18 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           enabledBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 1.0,
                             ),
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
-                          focusColor: const Color(0xFFFFC0CB),
+                          focusColor: const Color(0xFFADD8E6),
                         ),
                       ),
                     ),
@@ -531,10 +554,10 @@ class _LyricsScreenState extends State<LyricsScreen> {
                                 child: Radio<String>(
                                   value: 'en',
                                   groupValue: _selectedLanguage,
-                                  activeColor: const Color(0xFFFFC0CB),
+                                  activeColor: const Color(0xFFADD8E6),
                                   fillColor: MaterialStateProperty.resolveWith<Color>((states) {
                                     if (states.contains(MaterialState.selected)) {
-                                      return const Color(0xFFFFC0CB);
+                                      return const Color(0xFFADD8E6);
                                     }
                                     return isDarkTheme ? Colors.white70 : Colors.black54;
                                   }),
@@ -563,10 +586,10 @@ class _LyricsScreenState extends State<LyricsScreen> {
                                 child: Radio<String>(
                                   value: 'cn',
                                   groupValue: _selectedLanguage,
-                                  activeColor: const Color(0xFFFFC0CB),
+                                  activeColor: const Color(0xFFADD8E6),
                                   fillColor: MaterialStateProperty.resolveWith<Color>((states) {
                                     if (states.contains(MaterialState.selected)) {
-                                      return const Color(0xFFFFC0CB);
+                                      return const Color(0xFFADD8E6);
                                     }
                                     return isDarkTheme ? Colors.white70 : Colors.black54;
                                   }),
@@ -626,7 +649,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                         style: ElevatedButton.styleFrom(
                           side: const BorderSide(
                               color: Colors.black87, width: 1.0),
-                          backgroundColor: const Color(0xFFFFC0CB),
+                          backgroundColor: const Color(0xFFADD8E6),
                           foregroundColor: Colors.black87,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -666,7 +689,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
@@ -693,18 +716,18 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           enabledBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 1.0,
                             ),
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
-                          focusColor: const Color(0xFFFFC0CB),
+                          focusColor: const Color(0xFFADD8E6),
                         ),
                       ),
                     ),
@@ -723,7 +746,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
@@ -752,18 +775,18 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           enabledBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 1.0,
                             ),
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                             borderSide: BorderSide(
-                              color: Color(0xFFFFC0CB),
+                              color: Color(0xFFADD8E6),
                               width: 3.0,
                             ),
                           ),
-                          focusColor: const Color(0xFFFFC0CB),
+                          focusColor: const Color(0xFFADD8E6),
                         ),
                       ),
                     ),
@@ -805,7 +828,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                         style: ElevatedButton.styleFrom(
                           side: const BorderSide(
                               color: Colors.black87, width: 1.0),
-                          backgroundColor: const Color(0xFFFFC0CB),
+                          backgroundColor: const Color(0xFFADD8E6),
                           foregroundColor: Colors.black87,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -833,7 +856,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: isDarkTheme
-                      ? const BorderSide(color: Color(0xFFFFC0CB), width: 1.5)
+                      ? const BorderSide(color: Color(0xFFADD8E6), width: 1.5)
                       : BorderSide.none,
                 ),
                 child: Padding(

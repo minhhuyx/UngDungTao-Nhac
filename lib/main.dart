@@ -7,9 +7,10 @@ import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart' as home;
 import 'screens/history_screen.dart' as history;
 import 'screens/settings_screen.dart' as settings;
-import 'screens/account_screen.dart' as account;
 import 'screens/lyrics_screen.dart' as lyrics;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+
 // Định nghĩa MyAppState để quản lý trạng thái điều hướng
 class MyAppState extends ChangeNotifier {
   int _selectedIndex = 0;
@@ -17,30 +18,29 @@ class MyAppState extends ChangeNotifier {
   int get selectedIndex => _selectedIndex;
 
   void setSelectedIndex(int index) {
-    print('Setting selectedIndex to $index'); // Debug
+    print('Setting selectedIndex to $index');
     _selectedIndex = index;
     notifyListeners();
+    print('After notifyListeners, selectedIndex: $_selectedIndex');
   }
 }
 
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Tải file .env
   await dotenv.load(fileName: ".env");
-
-  // Khởi tạo Firebase
   try {
     await Firebase.initializeApp();
-
-    // Bật persistence cho Realtime Database (hỗ trợ offline)
     FirebaseDatabase.instance.setPersistenceEnabled(true);
-    // Thiết lập kích thước cache
-    FirebaseDatabase.instance.setPersistenceCacheSizeBytes(10000000); // 10MB
-    // Chỉ định database URL
+    FirebaseDatabase.instance.setPersistenceCacheSizeBytes(10000000);
     FirebaseDatabase.instance.databaseURL =
     'https://datn-9fc08-default-rtdb.asia-southeast1.firebasedatabase.app';
-
-    // Bao bọc ứng dụng trong ChangeNotifierProvider để cung cấp MyAppState
+    await FirebaseAppCheck.instance.activate(
+      webProvider: ReCaptchaV3Provider(dotenv.env['RECAPTCHA_SITE_KEY'] ?? ''),
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.debug,
+    );
     runApp(
       ChangeNotifierProvider(
         create: (context) => MyAppState(),
@@ -49,22 +49,15 @@ void main() async {
     );
   } catch (e) {
     print('Firebase initialization failed: $e');
-    runApp(ErrorApp(
-      error: 'Firebase initialization failed: $e',
-      onRetry: () {
-        main(); // Thử khởi tạo lại
-      },
-    ));
+    runApp(ErrorApp(error: 'Firebase initialization failed: $e', onRetry: () => main()));
   }
 }
 
-// Widget hiển thị lỗi nếu Firebase khởi tạo thất bại
 class ErrorApp extends StatelessWidget {
   final String error;
   final VoidCallback? onRetry;
 
-  const ErrorApp({required this.error, this.onRetry, Key? key})
-      : super(key: key);
+  const ErrorApp({required this.error, this.onRetry, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +82,6 @@ class ErrorApp extends StatelessWidget {
   }
 }
 
-// Ứng dụng chính với BottomNavigationBar để điều hướng
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -100,89 +92,23 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   bool _wasPreviouslyLoggedIn = false;
 
-  // Định nghĩa Light Theme
   final ThemeData _lightTheme = ThemeData(
-    primarySwatch: Colors.pink,
+    primarySwatch: Colors.grey,
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFFFC0CB),
-      foregroundColor: Colors.black87,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        side: const BorderSide(color: Colors.black87, width: 1.0),
-        backgroundColor: const Color(0xFFFFC0CB),
-        foregroundColor: Colors.black87,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.black87,
-      ),
+      backgroundColor: Color(0xFFADD8E6),
+      foregroundColor: Colors.black,
     ),
   );
 
-  // Định nghĩa Dark Theme với tất cả văn bản màu trắng
   final ThemeData _darkTheme = ThemeData(
-    primarySwatch: Colors.pink,
+    primarySwatch: Colors.grey,
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: Colors.grey[900],
+    scaffoldBackgroundColor: Colors.black,
     appBarTheme: AppBarTheme(
-      backgroundColor: Colors.grey[850],
+      backgroundColor: Colors.black,
       foregroundColor: Colors.white,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        side: const BorderSide(color: Colors.white70, width: 1.0),
-        backgroundColor: Colors.pink[700],
-        foregroundColor: Colors.white, // Văn bản trong nút màu trắng
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white, // Văn bản trong TextButton màu trắng
-      ),
-    ),
-    textTheme: const TextTheme(
-      bodyMedium: TextStyle(color: Colors.white), // Văn bản thông thường
-      bodyLarge: TextStyle(color: Colors.white), // Văn bản lớn hơn
-      titleLarge: TextStyle(color: Colors.white), // Tiêu đề lớn (như AppBar)
-      titleMedium: TextStyle(color: Colors.white), // Tiêu đề trung bình
-      titleSmall: TextStyle(color: Colors.white), // Tiêu đề nhỏ
-      labelLarge: TextStyle(color: Colors.white), // Nhãn nút
-      labelMedium: TextStyle(color: Colors.white), // Nhãn trung bình
-      labelSmall: TextStyle(color: Colors.white), // Nhãn nhỏ
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      labelStyle: TextStyle(color: Colors.white), // Nhãn trong TextField
-      hintStyle: TextStyle(color: Colors.white70), // Gợi ý trong TextField
-      border: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.white70),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.white70),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.white),
-      ),
-    ),
-    dropdownMenuTheme: DropdownMenuThemeData(
-      textStyle: TextStyle(color: Colors.white), // Văn bản trong DropdownButton
-    ),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.all(Colors.white),
-      trackColor: WidgetStateProperty.all(Colors.pink[700]),
-    ),
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      selectedLabelStyle: TextStyle(color: Colors.white),
-      unselectedLabelStyle: TextStyle(color: Colors.white70),
     ),
   );
 
@@ -206,25 +132,21 @@ class _MyAppState extends State<MyApp> {
           );
         }
 
-        // Phát hiện khi người dùng vừa đăng nhập
         final isLoggedIn = authSnapshot.hasData;
         if (isLoggedIn && !_wasPreviouslyLoggedIn) {
-          // Đặt lại selectedIndex về 0 (HomeScreen) khi vừa đăng nhập
           final appState = Provider.of<MyAppState>(context, listen: false);
           appState.setSelectedIndex(0);
         }
         _wasPreviouslyLoggedIn = isLoggedIn;
 
         if (isLoggedIn) {
-          // Lắng nghe trạng thái Dark Theme từ Firebase
           return StreamBuilder<DatabaseEvent>(
             stream: FirebaseDatabase.instance
                 .ref('settings/${authSnapshot.data!.uid}/is_dark_theme')
                 .onValue,
             builder: (context, themeSnapshot) {
               bool isDarkTheme = false;
-              if (themeSnapshot.hasData &&
-                  themeSnapshot.data!.snapshot.value != null) {
+              if (themeSnapshot.hasData && themeSnapshot.data!.snapshot.value != null) {
                 isDarkTheme = themeSnapshot.data!.snapshot.value as bool;
               }
 
@@ -235,40 +157,45 @@ class _MyAppState extends State<MyApp> {
                 themeMode: isDarkTheme ? ThemeMode.dark : ThemeMode.light,
                 home: Consumer<MyAppState>(
                   builder: (context, appState, child) {
-                    print(
-                        'Building Scaffold with selectedIndex: ${appState.selectedIndex}'); // Debug
-                    // Danh sách các màn hình
+                    print('Building Scaffold with selectedIndex: ${appState.selectedIndex}');
                     final List<Widget> screens = [
                       const home.HomeScreen(),
                       const lyrics.LyricsScreen(),
-                      const history.HistoryScreen(),
+                      history.HistoryScreen(
+                        onNavigate: (index) {
+                          print('HistoryScreen onNavigate called with index: $index');
+                          appState.setSelectedIndex(index);
+                        },
+                      ),
                       const settings.SettingsScreen(),
-                      const account.AccountScreen(),
                     ];
+
+                    print('Rendering screen at index: ${appState.selectedIndex}, Screen: ${screens[appState.selectedIndex].runtimeType}');
 
                     return Scaffold(
                       body: screens[appState.selectedIndex],
-                      bottomNavigationBar: BottomNavigationBar(
-                        items: const [
-                          BottomNavigationBarItem(
-                              icon: Icon(Icons.home), label: 'Home'),
-                          BottomNavigationBarItem(
-                              icon: Icon(Icons.music_note), label: 'Lyrics'),
-                          BottomNavigationBarItem(
-                              icon: Icon(Icons.history), label: 'History'),
-                          BottomNavigationBarItem(
-                              icon: Icon(Icons.settings), label: 'Settings'),
-                          BottomNavigationBarItem(
-                              icon: Icon(Icons.account_circle), label: 'Account'),
-                        ],
-                        currentIndex: appState.selectedIndex,
-                        selectedItemColor: isDarkTheme ? Colors.white : const Color(0xFFFFC0CB),
-                        unselectedItemColor: isDarkTheme ? Colors.white70 : Colors.grey,
-                        onTap: (index) {
-                          appState.setSelectedIndex(index);
-                        },
-                        type: BottomNavigationBarType.fixed,
+                      bottomNavigationBar: Theme(
+                        data: Theme.of(context).copyWith(
+                          splashColor: Colors.transparent,      // Tắt hiệu ứng sóng nước
+                          highlightColor: Colors.transparent,   // Tắt hiệu ứng khi nhấn giữ
+                        ),
+                        child: BottomNavigationBar(
+                          currentIndex: appState.selectedIndex,
+                          onTap: (index) {
+                            appState.setSelectedIndex(index);
+                          },
+                          type: BottomNavigationBarType.fixed,
+                          selectedItemColor: isDarkTheme ? const Color(0xFFADD8E6) : const Color(0xFFADD8E6),
+                          unselectedItemColor: isDarkTheme ? Colors.white70 : Colors.black45,
+                          items: const [
+                            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                            BottomNavigationBarItem(icon: Icon(Icons.music_note), label: 'Lyrics'),
+                            BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+                            BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+                          ],
+                        ),
                       ),
+
                     );
                   },
                 ),
@@ -280,7 +207,7 @@ class _MyAppState extends State<MyApp> {
           debugShowCheckedModeBanner: false,
           theme: _lightTheme,
           darkTheme: _darkTheme,
-          themeMode: ThemeMode.light, // Mặc định là Light Theme khi chưa đăng nhập
+          themeMode: ThemeMode.light,
           home: const AuthScreen(),
         );
       },

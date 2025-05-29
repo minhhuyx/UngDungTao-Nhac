@@ -50,6 +50,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.0.0")
     // Cố định phiên bản Facebook SDK
     implementation("com.facebook.android:facebook-android-sdk:16.0.0")
+    implementation ("com.google.firebase:firebase-appcheck")
 }
 
 flutter {
