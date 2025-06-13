@@ -219,7 +219,7 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
         ? widget.generatedAudioPath!.split('/').last
         : 'No Song Available';
 
-    final highlightColor = const Color(0xFF00CED1);
+    final highlightColor = Colors.black;
 
     return Scaffold(
       backgroundColor: Colors.white,

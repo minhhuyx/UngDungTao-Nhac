@@ -5,7 +5,6 @@ allprojects {
     }
 }
 
-
 plugins {
     // ...
 

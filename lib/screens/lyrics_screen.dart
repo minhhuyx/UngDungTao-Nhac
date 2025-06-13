@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LyricsHistoryManager {
   static const int maxLyrics = 5; // Giới hạn 5 lời bài hát
@@ -17,7 +17,7 @@ class LyricsHistoryManager {
     required String language,
     required String theme,
     required String tags,
-    required String category, // Thêm category để phân biệt "my_songs" hoặc "favorites"
+    required String category,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -28,7 +28,6 @@ class LyricsHistoryManager {
     final databaseRef = FirebaseDatabase.instance.ref('lyrics_history/$userId');
 
     try {
-      // Kiểm tra số lượng lời bài hát trong lịch sử
       final snapshot = await databaseRef.orderByChild('created_at').get();
       final lyricsEntries = <String, dynamic>{};
       if (snapshot.exists) {
@@ -37,11 +36,8 @@ class LyricsHistoryManager {
       }
 
       if (lyricsEntries.length >= LyricsHistoryManager.maxLyrics) {
-        // Xóa lời bài hát cũ nhất
-        final oldestSnapshot = await databaseRef
-            .orderByChild('created_at')
-            .limitToFirst(1)
-            .get();
+        final oldestSnapshot =
+            await databaseRef.orderByChild('created_at').limitToFirst(1).get();
         if (oldestSnapshot.exists) {
           final oldestKey = oldestSnapshot.children.first.key;
           print('Xóa mục cũ nhất: $oldestKey');
@@ -49,29 +45,33 @@ class LyricsHistoryManager {
         }
       }
 
-      // Thêm lời bài hát mới
       final newLyricsRef = databaseRef.push();
       final localTime = DateTime.now();
-      print('Thời gian thiết bị trước khi lưu: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(localTime)}');
-      print('Device Timestamp trước khi lưu: ${localTime.millisecondsSinceEpoch}');
+      print(
+        'Thời gian thiết bị trước khi lưu: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(localTime)}',
+      );
+      print(
+        'Device Timestamp trước khi lưu: ${localTime.millisecondsSinceEpoch}',
+      );
       await newLyricsRef.set({
         'generated_lyrics': generatedLyrics,
         'language': language,
         'theme': theme,
         'tags': tags,
-        'category': category, // Lưu category vào dữ liệu
+        'category': category,
         'created_at': ServerValue.timestamp,
       });
       print('Đã lưu dữ liệu vào: ${newLyricsRef.key}');
 
-      // Kiểm tra chênh lệch thời gian
       final savedSnapshot = await newLyricsRef.get();
       if (savedSnapshot.exists) {
         final savedData = Map<String, dynamic>.from(savedSnapshot.value as Map);
         final createdAt = savedData['created_at'] as int?;
         final deviceTime = localTime.millisecondsSinceEpoch;
         if (createdAt != null && (createdAt - deviceTime).abs() > 10000) {
-          print('Cảnh báo: Chênh lệch thời gian lớn: created_at=$createdAt, device_time=$deviceTime');
+          print(
+            'Cảnh báo: Chênh lệch thời gian lớn: created_at=$createdAt, device_time=$deviceTime',
+          );
         }
       }
     } catch (e) {
@@ -97,6 +97,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
   String _generatedLyrics = '';
   String _currentTheme = '';
   String _currentTags = '';
+  bool _isLoading = false;
+  bool _isSaved = false;
 
   final _themeFocusNode = FocusNode();
   final _tagsMethod2FocusNode = FocusNode();
@@ -105,16 +107,57 @@ class _LyricsScreenState extends State<LyricsScreen> {
 
   final highlightColor = const Color(0xFFADD8E6);
 
-  // Danh sách các mô hình AI
-  final List<String> _models = [
-    'Phi-4',              // Phi-4 (Microsoft)
-    'DeepSeek-V3-0324',   // DeepSeek-V3-0324 (DeepSeek)
-    'gpt-4o',             // OpenAI GPT-4o
-  ];
+  final List<String> _models = ['Phi-4', 'DeepSeek-V3-0324', 'gpt-4o'];
   String _selectedModel = 'gpt-4o';
-  String _selectedModel2 = 'gpt-4o';// Mô hình mặc định
+  String _selectedModel2 = 'gpt-4o';
 
-  // Kiểm tra kết nối và múi giờ
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedState();
+  }
+
+  Future<void> _loadSavedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _generatedLyrics = prefs.getString('lyrics_generatedLyrics') ?? '';
+      _currentTheme = prefs.getString('lyrics_currentTheme') ?? '';
+      _currentTags = prefs.getString('lyrics_currentTags') ?? '';
+      _selectedLanguage = prefs.getString('lyrics_selectedLanguage') ?? 'en';
+      _selectedModel = prefs.getString('lyrics_selectedModel') ?? 'gpt-4o';
+      _selectedModel2 = prefs.getString('lyrics_selectedModel2') ?? 'gpt-4o';
+      _isSaved = prefs.getBool('lyrics_isSaved') ?? false;
+    });
+  }
+
+  Future<void> _saveState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lyrics_generatedLyrics', _generatedLyrics);
+    await prefs.setString('lyrics_currentTheme', _currentTheme);
+    await prefs.setString('lyrics_currentTags', _currentTags);
+    await prefs.setString('lyrics_selectedLanguage', _selectedLanguage);
+    await prefs.setString('lyrics_selectedModel', _selectedModel);
+    await prefs.setString('lyrics_selectedModel2', _selectedModel2);
+    await prefs.setBool('lyrics_isSaved', _isSaved);
+  }
+
+  Future<void> _deleteLyrics() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _generatedLyrics = '';
+      _currentTheme = '';
+      _currentTags = '';
+      _isSaved = false;
+    });
+    await prefs.remove('lyrics_generatedLyrics');
+    await prefs.remove('lyrics_currentTheme');
+    await prefs.remove('lyrics_currentTags');
+    await prefs.setBool('lyrics_isSaved', false);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Đã xóa lời bài hát!')));
+  }
+
   Future<bool> _checkConnectionAndTimeZone() async {
     bool isConnected = await FirebaseDatabase.instance
         .ref()
@@ -123,19 +166,22 @@ class _LyricsScreenState extends State<LyricsScreen> {
         .then((event) => event.snapshot.exists);
     if (!isConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không có kết nối mạng. Vui lòng thử lại.')),
+        const SnackBar(
+          content: Text('Không có kết nối mạng. Vui lòng thử lại.'),
+        ),
       );
       return false;
     }
 
     final now = DateTime.now();
-    print('Thời gian thiết bị: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}');
+    print(
+      'Thời gian thiết bị: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}',
+    );
     print('Múi giờ: ${now.timeZoneName}, Offset: ${now.timeZoneOffset}');
     print('Device Timestamp: ${now.millisecondsSinceEpoch}');
     return true;
   }
 
-  // Method 1: Generate from Theme with Timestamps
   Future<void> _generateLyricsFromTheme() async {
     final theme = _themeController.text.trim();
     final tags = _tagsMethod1Controller.text.trim();
@@ -147,14 +193,19 @@ class _LyricsScreenState extends State<LyricsScreen> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+      _isSaved = false;
+      _generatedLyrics = ''; // Clear the displayed lyrics
+    });
+
     try {
-      // Lấy baseApiUrl và apiKey từ file .env
       final String baseApiUrl = dotenv.env['baseApiUrl_Lyrics'] ?? '';
       final String apiKey = dotenv.env['apiKey_Lyrics'] ?? '';
       final String apiUrl = '$baseApiUrl/chat/completions';
 
       if (baseApiUrl.isEmpty || apiKey.isEmpty) {
-        throw Exception('API URL or API Key is missing in .env file');
+        throw Exception('API URL or API Key is missing');
       }
 
       final response = await http.post(
@@ -168,27 +219,22 @@ class _LyricsScreenState extends State<LyricsScreen> {
           'messages': [
             {
               'role': 'user',
-              'content':
-              'Write high-quality song lyrics based on the theme "$theme" and style "$tags" (e.g., piano slow).\n'
-                  'Language: ${_selectedLanguage == 'en' ? 'English' : 'Chinese'}\n'
-                  'Structure: at least 2 verses, 1–2 choruses, and optionally a bridge\n'
-                  'Duration: lyrics should cover around 3 minutes (~45–60 lines)\n'
-                  'Add a timestamp at the beginning of each line, e.g.:\n'
-                  '[00:00] The rain falls soft on shattered dreams\n'
-                  '[00:04] A heart undone by silent screams\n'
-                  'Use vivid imagery, emotional depth, and natural rhymes\n'
-                  'Make sure the lyrics are musically rhythmic and suitable for singing\n'
-                  'After generation, refine the lyrics for cohesion, emotion, and lyrical flow',
+              'content': '''
+                      Write song lyrics for theme "$theme" in style ($tags).
+                      Language: ${_selectedLanguage == 'en' ? 'English' : 'Chinese'}
+                      Length: ~3 min (~45–60 lines)
+                      Timestamps: [MM:SS.MS], e.g., [00:04.34], incrementing for ~3 min
+                      Use vivid imagery, natural rhymes, with each line after its timestamp
+''',
             },
           ],
-          'max_tokens': 3000,
+          'max_tokens': 2000,
           'temperature': 1.0,
-          'top_p': 1.0,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes, allowMalformed: true));
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         final generatedLyrics = data['choices'][0]['message']['content'];
         setState(() {
           _generatedLyrics = generatedLyrics;
@@ -196,46 +242,46 @@ class _LyricsScreenState extends State<LyricsScreen> {
           _currentTags = tags;
           _themeController.clear();
           _tagsMethod1Controller.clear();
-          FocusScope.of(context).requestFocus(_themeFocusNode);
+          _isLoading = false;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lyrics generated!')),
-        );
+        await _saveState();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Lyrics generated!')));
       } else {
-        throw Exception(
-          'Failed to generate lyrics: ${response.statusCode} - ${response.body}',
-        );
+        throw Exception('Failed to generate lyrics');
       }
     } catch (e) {
-      print('Error generating lyrics: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  // Method 2: Simply Add Timestamps to Raw Lyrics
   Future<void> _addTimestampsToLyrics() async {
     final tags = _tagsMethod2Controller.text.trim();
     final rawLyrics = _rawLyricsController.text.trim();
 
     if (rawLyrics.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter raw lyrics')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter raw lyrics')));
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+      _isSaved = false;
+      _generatedLyrics = ''; // Clear the displayed lyrics
+    });
+
     try {
-      // Lấy baseApiUrl và apiKey từ file .env
       final String baseApiUrl = dotenv.env['baseApiUrl_Lyrics'] ?? '';
       final String apiKey = dotenv.env['apiKey_Lyrics'] ?? '';
       final String apiUrl = '$baseApiUrl/chat/completions';
-
-      if (baseApiUrl.isEmpty || apiKey.isEmpty) {
-        throw Exception('API URL or API Key is missing in .env file');
-      }
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -249,17 +295,15 @@ class _LyricsScreenState extends State<LyricsScreen> {
             {
               'role': 'user',
               'content':
-              'Add timestamps (e.g., [MM:SS]) to the following lyrics in ${_selectedLanguage == 'en' ? 'English' : 'Chinese'} format, based on the style tags "$tags" and a typical song tempo. Do not modify or enhance the lyrics, just add timestamps:\n\n$rawLyrics',
+              'Add timestamps to the lyrics in ${_selectedLanguage} format, based on tags "$tags":\n\n$rawLyrics',
             },
           ],
-          'max_tokens': 3000,
-          'temperature': 1.0,
-          'top_p': 1.0,
+          'max_tokens': 2000,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes, allowMalformed: true));
+        final data = jsonDecode(response.body);
         final generatedLyrics = data['choices'][0]['message']['content'];
         setState(() {
           _generatedLyrics = generatedLyrics;
@@ -267,76 +311,66 @@ class _LyricsScreenState extends State<LyricsScreen> {
           _currentTags = tags;
           _rawLyricsController.clear();
           _tagsMethod2Controller.clear();
-          FocusScope.of(context).requestFocus(_tagsMethod2FocusNode);
+          _isLoading = false;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Timestamps added!')),
-        );
+        await _saveState();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Timestamps added!')));
       } else {
-        throw Exception(
-          'Failed to add timestamps: ${response.statusCode} - ${response.body}',
-        );
+        throw Exception('Failed to add timestamps');
       }
     } catch (e) {
-      print('Error adding timestamps: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  // Hàm lưu lời bài hát vào Firebase
-  // Hàm lưu lời bài hát vào Firebase
-  // Hàm lưu lời bài hát vào Firebase
   Future<void> _saveLyrics() async {
-    if (_generatedLyrics.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không có lời bài hát để lưu')),
-      );
-      return;
-    }
-
-    if (!await _checkConnectionAndTimeZone()) return;
-
     try {
       await _historyManager.addLyricsToHistory(
         generatedLyrics: _generatedLyrics,
         language: _selectedLanguage,
         theme: _currentTheme,
         tags: _currentTags,
-        category: 'favorites', // Đặt category là "favorites"
+        category: 'favorites',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã lưu lời bài hát vào lịch sử!')),
-      );
+      setState(() {
+        _isSaved = true;
+      });
+      await _saveState();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã lưu thành công!')));
     } catch (e) {
-      print('Lỗi khi lưu lời bài hát: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi lưu lời bài hát: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi lưu: $e')));
     }
   }
 
-  // Hàm sao chép lời bài hát
   void _copyLyricsToClipboard() {
     Clipboard.setData(ClipboardData(text: _generatedLyrics));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Lyrics copied to clipboard!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Lyrics copied!')));
   }
 
   @override
   Widget build(BuildContext context) {
-    // Xác định màu chữ và theme
-    final textColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.white // Màu trắng cho dark theme
-        : Colors.black; // Màu đen cho light theme
+    final textColor =
+        Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black;
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My App'),
+        title: const Text('DIFFRHYTHM AI'),
         backgroundColor: highlightColor,
         actions: [
           Builder(
@@ -361,20 +395,20 @@ class _LyricsScreenState extends State<LyricsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Notice Card
             Card(
               color: const Color(0xFFADD8E6),
               elevation: 6,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: isDarkTheme
-                    ? const BorderSide(color: Color(0xFFADD8E6), width: 1.5)
-                    : BorderSide.none,
+                side:
+                    isDarkTheme
+                        ? const BorderSide(color: Color(0xFFADD8E6), width: 1.5)
+                        : BorderSide.none,
               ),
               child: ExpansionTile(
                 title: Text(
-                  'Notice',
-                  style: GoogleFonts.poppins(
+                  'Hướng Dẫn',
+                  style: GoogleFonts.beVietnamPro(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -389,8 +423,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                   Padding(
                     padding: const EdgeInsets.all(15.0),
                     child: Text(
-                      'Two Generation Modes:\n1. Generate from theme & tags with timestamps\n2. Add timestamps to existing lyrics',
-                      style: GoogleFonts.raleway(
+                      'Hai chế độ tạo lời bài hát:\n1. Tạo từ chủ đề và phong cách.\n2. Cập nhật định dạng cho lời nhạc.',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 15,
                         color: Colors.black,
                       ),
@@ -400,30 +434,28 @@ class _LyricsScreenState extends State<LyricsScreen> {
               ),
             ),
             const SizedBox(height: 15),
-            // Input Card
             Card(
               color: isDarkTheme ? Colors.black : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: const BorderSide(color: Color(0xFFADD8E6), width: 1.0)
+                side: const BorderSide(color: Color(0xFFADD8E6), width: 1.0),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Method 1
                     Text(
-                      'Method 1: Generate from Theme ',
-                      style: GoogleFonts.poppins(
+                      'Tạo lời nhạc theo phong cách',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Theme',
-                      style: GoogleFonts.poppins(
+                      'Chủ đề',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -444,13 +476,13 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       child: TextField(
                         controller: _themeController,
                         focusNode: _themeFocusNode,
-                        style: GoogleFonts.raleway(
+                        style: GoogleFonts.beVietnamPro(
                           fontSize: 15,
                           color: textColor,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Enter song theme,e.g: Love and Heartbreak',
-                          hintStyle: GoogleFonts.raleway(
+                          hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
                           ),
@@ -479,8 +511,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Tags ',
-                      style: GoogleFonts.poppins(
+                      'Phong cách',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -500,13 +532,14 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       ),
                       child: TextField(
                         controller: _tagsMethod1Controller,
-                        style: GoogleFonts.raleway(
+                        style: GoogleFonts.beVietnamPro(
                           fontSize: 15,
                           color: textColor,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Enter song tags,eg: pop confidence healing',
-                          hintStyle: GoogleFonts.raleway(
+                          hintText:
+                              'Enter song tags,eg: pop confidence healing',
+                          hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
                           ),
@@ -535,8 +568,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Language',
-                      style: GoogleFonts.poppins(
+                      'Ngôn Ngữ',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -555,23 +588,34 @@ class _LyricsScreenState extends State<LyricsScreen> {
                                   value: 'en',
                                   groupValue: _selectedLanguage,
                                   activeColor: const Color(0xFFADD8E6),
-                                  fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-                                    if (states.contains(MaterialState.selected)) {
-                                      return const Color(0xFFADD8E6);
-                                    }
-                                    return isDarkTheme ? Colors.white70 : Colors.black54;
-                                  }),
+                                  fillColor:
+                                      MaterialStateProperty.resolveWith<Color>((
+                                        states,
+                                      ) {
+                                        if (states.contains(
+                                          MaterialState.selected,
+                                        )) {
+                                          return const Color(0xFFADD8E6);
+                                        }
+                                        return isDarkTheme
+                                            ? Colors.white70
+                                            : Colors.black54;
+                                      }),
                                   onChanged: (value) {
-                                    setState(() => _selectedLanguage = value!);
+                                    setState(() {
+                                      _selectedLanguage = value!;
+                                      _saveState();
+                                    });
                                   },
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'English',
-                                style: GoogleFonts.raleway(
+                                'Tiếng Anh',
+                                style: GoogleFonts.beVietnamPro(
                                   fontSize: 15,
-                                  color: isDarkTheme ? Colors.white : Colors.black,
+                                  color:
+                                      isDarkTheme ? Colors.white : Colors.black,
                                 ),
                               ),
                             ],
@@ -587,23 +631,34 @@ class _LyricsScreenState extends State<LyricsScreen> {
                                   value: 'cn',
                                   groupValue: _selectedLanguage,
                                   activeColor: const Color(0xFFADD8E6),
-                                  fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-                                    if (states.contains(MaterialState.selected)) {
-                                      return const Color(0xFFADD8E6);
-                                    }
-                                    return isDarkTheme ? Colors.white70 : Colors.black54;
-                                  }),
+                                  fillColor:
+                                      MaterialStateProperty.resolveWith<Color>((
+                                        states,
+                                      ) {
+                                        if (states.contains(
+                                          MaterialState.selected,
+                                        )) {
+                                          return const Color(0xFFADD8E6);
+                                        }
+                                        return isDarkTheme
+                                            ? Colors.white70
+                                            : Colors.black54;
+                                      }),
                                   onChanged: (value) {
-                                    setState(() => _selectedLanguage = value!);
+                                    setState(() {
+                                      _selectedLanguage = value!;
+                                      _saveState();
+                                    });
                                   },
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Chinese',
-                                style: GoogleFonts.raleway(
+                                'Tiếng Trung',
+                                style: GoogleFonts.beVietnamPro(
                                   fontSize: 15,
-                                  color: isDarkTheme ? Colors.white : Colors.black,
+                                  color:
+                                      isDarkTheme ? Colors.white : Colors.black,
                                 ),
                               ),
                             ],
@@ -613,8 +668,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Model AI',
-                      style: GoogleFonts.poppins(
+                      'Mô Hình AI',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -626,16 +681,18 @@ class _LyricsScreenState extends State<LyricsScreen> {
                         value: _selectedModel,
                         isExpanded: true,
                         hint: const Text('Chọn mô hình AI / Select AI model'),
-                        items: _models.map((String model) {
-                          return DropdownMenuItem<String>(
-                            value: model,
-                            child: Text(model),
-                          );
-                        }).toList(),
+                        items:
+                            _models.map((String model) {
+                              return DropdownMenuItem<String>(
+                                value: model,
+                                child: Text(model),
+                              );
+                            }).toList(),
                         onChanged: (String? newValue) {
                           if (newValue != null) {
                             setState(() {
                               _selectedModel = newValue;
+                              _saveState();
                             });
                           }
                         },
@@ -645,10 +702,12 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _generateLyricsFromTheme,
+                        onPressed: _isLoading ? null : _generateLyricsFromTheme,
                         style: ElevatedButton.styleFrom(
                           side: const BorderSide(
-                              color: Colors.black87, width: 1.0),
+                            color: Colors.black87,
+                            width: 1.0,
+                          ),
                           backgroundColor: const Color(0xFFADD8E6),
                           foregroundColor: Colors.black87,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -657,8 +716,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           ),
                         ),
                         child: Text(
-                          'Generate LRC (From Theme)',
-                          style: GoogleFonts.poppins(
+                          'Tạo Lời Nhạc',
+                          style: GoogleFonts.beVietnamPro(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -666,18 +725,17 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    // Method 2
                     Text(
-                      'Method 2: Add Timestamps to Lyrics',
-                      style: GoogleFonts.poppins(
+                      'Cập nhật định dạng cho lời nhạc',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Tags',
-                      style: GoogleFonts.poppins(
+                      'Phong cách',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -698,13 +756,13 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       child: TextField(
                         controller: _tagsMethod2Controller,
                         focusNode: _tagsMethod2FocusNode,
-                        style: GoogleFonts.raleway(
+                        style: GoogleFonts.beVietnamPro(
                           fontSize: 15,
                           color: textColor,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Enter song tags,eg: ballad piano slow',
-                          hintStyle: GoogleFonts.raleway(
+                          hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
                           ),
@@ -733,8 +791,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Raw Lyrics (without timestamps)',
-                      style: GoogleFonts.poppins(
+                      'Lời Bài Hát Gốc',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -755,15 +813,16 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       child: TextField(
                         controller: _rawLyricsController,
                         maxLines: 5,
-                        style: GoogleFonts.raleway(
+                        style: GoogleFonts.beVietnamPro(
                           fontSize: 15,
                           color: textColor,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Enter plain lyrics,eg:\n'
+                          hintText:
+                              'Enter plain lyrics,eg:\n'
                               'Yesterday\n'
                               'All my troubles',
-                          hintStyle: GoogleFonts.raleway(
+                          hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
                           ),
@@ -792,8 +851,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                     ),
                     const SizedBox(height: 15),
                     Text(
-                      'Model AI',
-                      style: GoogleFonts.poppins(
+                      'Mô hình AI',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -804,30 +863,33 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       child: DropdownButton<String>(
                         value: _selectedModel2,
                         isExpanded: true,
-                        items: _models.map((String model) {
-                          return DropdownMenuItem<String>(
-                            value: model,
-                            child: Text(model),
-                          );
-                        }).toList(),
+                        items:
+                            _models.map((String model) {
+                              return DropdownMenuItem<String>(
+                                value: model,
+                                child: Text(model),
+                              );
+                            }).toList(),
                         onChanged: (String? newValue) {
                           if (newValue != null) {
                             setState(() {
                               _selectedModel2 = newValue;
+                              _saveState();
                             });
                           }
                         },
                       ),
-
                     ),
                     const SizedBox(height: 15),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _addTimestampsToLyrics,
+                        onPressed: _isLoading ? null : _addTimestampsToLyrics,
                         style: ElevatedButton.styleFrom(
                           side: const BorderSide(
-                              color: Colors.black87, width: 1.0),
+                            color: Colors.black87,
+                            width: 1.0,
+                          ),
                           backgroundColor: const Color(0xFFADD8E6),
                           foregroundColor: Colors.black87,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -836,8 +898,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           ),
                         ),
                         child: Text(
-                          'Generate LRC (From Lyrics)',
-                          style: GoogleFonts.poppins(
+                          'Cập Nhật Định Dạng',
+                          style: GoogleFonts.beVietnamPro(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -849,15 +911,18 @@ class _LyricsScreenState extends State<LyricsScreen> {
               ),
             ),
             const SizedBox(height: 15),
-            // Card displaying lyrics with copy and save buttons
             if (_generatedLyrics.isNotEmpty)
               Card(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: isDarkTheme
-                      ? const BorderSide(color: Color(0xFFADD8E6), width: 1.5)
-                      : BorderSide.none,
+                  side:
+                      isDarkTheme
+                          ? const BorderSide(
+                            color: Color(0xFFADD8E6),
+                            width: 1.5,
+                          )
+                          : BorderSide.none,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -878,13 +943,39 @@ class _LyricsScreenState extends State<LyricsScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.copy),
-                                onPressed: _copyLyricsToClipboard,
+                                onPressed:
+                                    _generatedLyrics.isNotEmpty
+                                        ? _copyLyricsToClipboard
+                                        : null,
                                 tooltip: 'Copy lyrics',
+                                color:
+                                    _generatedLyrics.isNotEmpty
+                                        ? null
+                                        : Colors.grey,
                               ),
                               IconButton(
                                 icon: const Icon(Icons.save),
-                                onPressed: _saveLyrics,
+                                onPressed:
+                                    _generatedLyrics.isNotEmpty && !_isSaved
+                                        ? _saveLyrics
+                                        : null,
                                 tooltip: 'Save lyrics',
+                                color:
+                                    _generatedLyrics.isNotEmpty && !_isSaved
+                                        ? null
+                                        : Colors.grey,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.cancel_outlined),
+                                onPressed:
+                                    _generatedLyrics.isNotEmpty
+                                        ? _deleteLyrics
+                                        : null,
+                                tooltip: 'Delete lyrics',
+                                color:
+                                    _generatedLyrics.isNotEmpty
+                                        ? null
+                                        : Colors.grey,
                               ),
                             ],
                           ),
@@ -894,6 +985,30 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       Text(
                         _generatedLyrics,
                         style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (_isLoading && _generatedLyrics.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFFADD8E6),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Đang tải...',
+                        style: GoogleFonts.beVietnamPro(
+                          fontSize: 16,
+                          color: textColor,
+                        ),
                       ),
                     ],
                   ),

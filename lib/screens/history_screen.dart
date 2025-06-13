@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -35,18 +36,21 @@ class LyricsEntry {
 
 // Custom AppBar Widget
 class CustomHistoryAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final Color highlightColor;
-
-  const CustomHistoryAppBar({Key? key, required this.highlightColor}) : super(key: key);
+  const CustomHistoryAppBar({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final double appBarHeight = AppBar().preferredSize.height;
-    final double imageHeight = appBarHeight * 10.0; // điều chỉnh phù hợp
+    final double imageHeight = appBarHeight * 10.0; // Điều chỉnh phù hợp
 
     return AppBar(
-      title: const Text('Lịch Sử'),
-      backgroundColor: highlightColor,
+      title: Text(
+        'LỊCH SỬ',
+        style: GoogleFonts.beVietnamPro(),
+      ),
+      backgroundColor: const Color(0xFFADD8E6),
+      foregroundColor: isDarkTheme ? Colors.white : Colors.black,
       actions: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -68,7 +72,6 @@ class CustomHistoryAppBar extends StatelessWidget implements PreferredSizeWidget
 class CustomHistoryTabBar extends StatelessWidget implements PreferredSizeWidget {
   final TabController tabController;
   final int currentTabIndex;
-  final Color highlightColor = const Color(0xFFADD8E6);
 
   const CustomHistoryTabBar({
     Key? key,
@@ -78,11 +81,14 @@ class CustomHistoryTabBar extends StatelessWidget implements PreferredSizeWidget
 
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final highlightColor = isDarkTheme ? Colors.blueGrey[700]! : const Color(0xFFADD8E6);
+
     return Container(
       height: 45,
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: isDarkTheme ? Colors.grey[800] : Colors.grey[200],
         borderRadius: BorderRadius.circular(20.0),
       ),
       child: Theme(
@@ -98,8 +104,8 @@ class CustomHistoryTabBar extends StatelessWidget implements PreferredSizeWidget
             color: highlightColor,
           ),
           dividerColor: Colors.transparent,
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.black54,
+          labelColor: isDarkTheme ? Colors.white : Colors.black,
+          unselectedLabelColor: isDarkTheme ? Colors.grey[400] : Colors.black54,
           labelPadding: EdgeInsets.zero,
           splashFactory: NoSplash.splashFactory, // Additional safeguard
           overlayColor: MaterialStateProperty.all(Colors.transparent), // Disable overlay
@@ -109,9 +115,11 @@ class CustomHistoryTabBar extends StatelessWidget implements PreferredSizeWidget
                 alignment: Alignment.center,
                 child: Text(
                   'Bài hát',
-                  style: TextStyle(
+                  style: GoogleFonts.beVietnamPro(
                     fontWeight: FontWeight.bold,
-                    color: currentTabIndex == 0 ? Colors.black : Colors.black54,
+                    color: currentTabIndex == 0
+                        ? (isDarkTheme ? Colors.white : Colors.black)
+                        : (isDarkTheme ? Colors.grey[400] : Colors.black54),
                   ),
                 ),
               ),
@@ -121,9 +129,11 @@ class CustomHistoryTabBar extends StatelessWidget implements PreferredSizeWidget
                 alignment: Alignment.center,
                 child: Text(
                   'Lời nhạc',
-                  style: TextStyle(
+                  style: GoogleFonts.beVietnamPro(
                     fontWeight: FontWeight.bold,
-                    color: currentTabIndex == 1 ? Colors.black : Colors.black54,
+                    color: currentTabIndex == 1
+                        ? (isDarkTheme ? Colors.white : Colors.black)
+                        : (isDarkTheme ? Colors.grey[400] : Colors.black54),
                   ),
                 ),
               ),
@@ -156,8 +166,6 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   BehaviorSubject<List<LyricsEntry>>();
   late TabController _tabController;
   int _currentTabIndex = 0;
-
-  final highlightColor = const Color(0xFFADD8E6);
 
   @override
   void initState() {
@@ -316,6 +324,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   void _showLyricsDialog(LyricsEntry entry) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -323,12 +332,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           borderRadius: BorderRadius.zero,
           side: BorderSide(color: Colors.transparent, width: 0),
         ),
+        backgroundColor: isDarkTheme ? Colors.grey[900] : Colors.white,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Song Lyrics'),
+            Text(
+              'Song Lyrics',
+              style: TextStyle(color: isDarkTheme ? Colors.white : Colors.black),
+            ),
             IconButton(
-              icon: const Icon(Icons.copy),
+              icon: Icon(Icons.copy, color: isDarkTheme ? Colors.white70 : Colors.black54),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: entry.generatedLyrics));
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -342,13 +355,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         content: SingleChildScrollView(
           child: Text(
             entry.generatedLyrics,
-            style: const TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 16, color: isDarkTheme ? Colors.white : Colors.black),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(
+              'Close',
+              style: TextStyle(color: isDarkTheme ? Colors.white70 : Colors.black54),
+            ),
           ),
         ],
       ),
@@ -361,8 +377,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: CustomHistoryAppBar(highlightColor: highlightColor),
+      appBar: CustomHistoryAppBar(),
       body: Stack(
         children: [
           Column(
@@ -394,9 +411,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             return Card(
                               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               elevation: 0,
+                              color: isDarkTheme ? Colors.grey[850] : Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10.0),
-                                side: const BorderSide(color: Colors.transparent, width: 0),
+                                side: BorderSide(
+                                  color: Color(0xFFADD8E6), // màu viền
+                                  width: 2.0, // độ dày viền
+                                ),
                               ),
                               child: Theme(
                                 data: Theme.of(context).copyWith(
@@ -420,20 +441,45 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                   },
                                   title: Text(
                                     entry.fileUrl != null ? ' ${entry.key}' : 'Song Lyrics',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    style: GoogleFonts.beVietnamPro(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDarkTheme ? Colors.white : Colors.black,
+                                    ),
                                   ),
                                   subtitle: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       if (entry.language.isNotEmpty)
-                                        Text('Ngôn ngữ: ${entry.language}'),
-                                      if (entry.theme.isNotEmpty) Text('Chủ đề: ${entry.theme}'),
-                                      if (entry.tags.isNotEmpty) Text('Thể loại: ${entry.tags}'),
-                                      Text('Thời gian tạo: ${_formatDate(entry.date)}'),
+                                        Text(
+                                          'Ngôn ngữ: ${entry.language}',
+                                          style: GoogleFonts.beVietnamPro(
+                                            color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      if (entry.theme.isNotEmpty)
+                                        Text(
+                                          'Chủ đề: ${entry.theme}',
+                                          style: GoogleFonts.beVietnamPro(
+                                            color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      if (entry.tags.isNotEmpty)
+                                        Text(
+                                          'Thể loại: ${entry.tags}',
+                                          style: GoogleFonts.beVietnamPro(
+                                            color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      Text(
+                                        'Thời gian tạo: ${_formatDate(entry.date)}',
+                                        style: GoogleFonts.beVietnamPro(
+                                          color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   trailing: IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    icon: Icon(Icons.delete, color: isDarkTheme ? Colors.red[300] : Colors.red),
                                     onPressed: () => _deleteEntry(
                                       'my_songs',
                                       entry.key,
@@ -464,9 +510,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             return Card(
                               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               elevation: 0,
+                              color: isDarkTheme ? Colors.grey[850] : Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10.0),
-                                side: const BorderSide(color: Colors.transparent, width: 0),
+                                side: BorderSide(
+                                  color: Color(0xFFADD8E6), // màu viền
+                                  width: 2.0, // độ dày viền
+                                ),
                               ),
                               child: Theme(
                                 data: Theme.of(context).copyWith(
@@ -474,22 +524,47 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                 ),
                                 child: ListTile(
                                   onTap: () => _showLyricsDialog(entry),
-                                  title: const Text(
+                                  title: Text(
                                     'Song Lyrics',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                    style: GoogleFonts.beVietnamPro(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDarkTheme ? Colors.white : Colors.black,
+                                    ),
                                   ),
                                   subtitle: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       if (entry.language.isNotEmpty)
-                                        Text('Ngôn ngữ: ${entry.language}'),
-                                      if (entry.theme.isNotEmpty) Text('Chủ đề: ${entry.theme}'),
-                                      if (entry.tags.isNotEmpty) Text('Thể loại: ${entry.tags}'),
-                                      Text('Thời gian tạo: ${_formatDate(entry.date)}'),
+                                        Text(
+                                          'Ngôn ngữ: ${entry.language}',
+                                          style: GoogleFonts.beVietnamPro(
+                                            color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      if (entry.theme.isNotEmpty)
+                                        Text(
+                                          'Chủ đề: ${entry.theme}',
+                                          style: GoogleFonts.beVietnamPro(
+                                            color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      if (entry.tags.isNotEmpty)
+                                        Text(
+                                          'Thể loại: ${entry.tags}',
+                                          style: GoogleFonts.beVietnamPro(
+                                            color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      Text(
+                                        'Thời gian tạo: ${_formatDate(entry.date)}',
+                                        style: GoogleFonts.beVietnamPro(
+                                          color: isDarkTheme ? Colors.white70 : Colors.black87,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   trailing: IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    icon: Icon(Icons.delete, color: isDarkTheme ? Colors.red[300] : Colors.red),
                                     onPressed: () => _deleteEntry('favorites', entry.key),
                                   ),
                                 ),
@@ -541,18 +616,17 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             child: Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF40C4FF),
-                                    Color(0xFF00B7A8),
-                                  ],
+                                gradient: LinearGradient(
+                                  colors: isDarkTheme
+                                      ? [Colors.blueGrey[600]!, Colors.blueGrey[800]!]
+                                      : [const Color(0xFF40C4FF), const Color(0xFF00B7A8)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.add,
-                                color: Colors.white,
+                                color: isDarkTheme ? Colors.white70 : Colors.white,
                                 size: 28,
                               ),
                             ),
@@ -568,7 +642,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           ),
         ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkTheme ? Colors.black : Colors.white,
     );
   }
 }

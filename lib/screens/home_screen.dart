@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart' as audio;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -14,111 +14,239 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'musicplay_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+// Widget buildMusicCard không thay đổi
 Widget buildMusicCard(
-    String? generatedAudioPath,
-    Color cardColor,
-    Color cardTextColor,
-    TextEditingController textPromptController,
-    BuildContext context,
-    Function() onDelete,
-    ) {
+  String? generatedAudioPath,
+  Color cardColor,
+  Color cardTextColor,
+  TextEditingController textPromptController,
+  BuildContext context,
+  Function() onDelete,
+) {
+  bool isPlaying = false;
+  final ValueNotifier<double> sliderValue = ValueNotifier<double>(0.0);
+  final audio.AudioPlayer audioPlayer = audio.AudioPlayer();
+  Duration? totalDuration;
+  final highlightColor = const Color(0xFFADD8E6);
+  bool isLiked = false;
+
+  // Thiết lập AudioPlayer
+  void _setupAudioPlayer() {
+    // Lắng nghe thời lượng bài hát
+    audioPlayer.onDurationChanged.listen((Duration duration) {
+      totalDuration = duration;
+    });
+
+    // Lắng nghe vị trí phát nhạc
+    audioPlayer.onPositionChanged.listen((Duration position) {
+      if (totalDuration != null && totalDuration!.inSeconds > 0) {
+        sliderValue.value = position.inSeconds / totalDuration!.inSeconds;
+      }
+    });
+
+    // Khi bài hát kết thúc, đặt lại trạng thái
+    audioPlayer.onPlayerComplete.listen((event) {
+      sliderValue.value = 0.0;
+      isPlaying = false;
+    });
+  }
+
+  _setupAudioPlayer();
+
   return Padding(
-    padding: const EdgeInsets.only(top: 20.0),
-    child: Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.blue, width: 1.5),
-      ),
-      color: cardColor.withOpacity(0.9),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(5.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(5.0, 0, 5.0, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Generated Music',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: cardTextColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                    onPressed: onDelete,
-                    tooltip: 'Xóa tệp nhạc',
-                  ),
-                ],
-              ),
-            ),
-            Divider(
-              color: Colors.grey,
-              thickness: 0.5,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(5.0, 2.0, 5.0, 2.0),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MusicPlayScreen(
-                        generatedAudioPath: generatedAudioPath,
-                        textPromptController: textPromptController,
-                      ),
-                    ),
-                  );
-                },
-                child: Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/avatar2.png'),
-                          fit: BoxFit.cover,
+    padding: const EdgeInsets.only(top: 10.0),
+    child: StatefulBuilder(
+      builder: (BuildContext context, StateSetter setState) {
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: highlightColor, width: 1.5),
+          ),
+          color: cardColor.withOpacity(0.9),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(5.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(5.0, 2.0, 5.0, 2.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => MusicPlayScreen(
+                                generatedAudioPath: generatedAudioPath,
+                                textPromptController: textPromptController,
+                              ),
                         ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              image: const DecorationImage(
+                                image: AssetImage('assets/avatar2.png'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  generatedAudioPath != null
+                                      ? generatedAudioPath.split('/').last
+                                      : 'No Audio',
+                                  style: GoogleFonts.beVietnamPro(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: cardTextColor,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'This Phone',
+                                  style: GoogleFonts.beVietnamPro(
+                                    fontSize: 14,
+                                    color: cardTextColor.withOpacity(0.7),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.favorite,
+                                  color: isLiked ? Colors.red : Colors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    isLiked = !isLiked;
+                                  });
+                                },
+                                tooltip: isLiked ? 'Bỏ thích' : 'Thích',
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  isPlaying ? Icons.pause : Icons.play_arrow,
+                                  color: highlightColor,
+                                  size: 20,
+                                ),
+                                onPressed: () async {
+                                  if (generatedAudioPath != null) {
+                                    try {
+                                      if (isPlaying) {
+                                        await audioPlayer.pause();
+                                      } else {
+                                        await audioPlayer.play(
+                                          audio.DeviceFileSource(
+                                            generatedAudioPath,
+                                          ),
+                                        );
+                                      }
+                                      setState(() {
+                                        isPlaying = !isPlaying;
+                                      });
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Lỗi phát nhạc: $e'),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Không có tệp âm thanh để phát',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                tooltip: isPlaying ? 'Tạm dừng' : 'Phát',
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  audioPlayer.stop(); // Dừng phát trước khi xóa
+                                  onDelete();
+                                },
+                                tooltip: 'Xóa tệp nhạc',
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Text(
-                        generatedAudioPath != null
-                            ? " ${generatedAudioPath.split('/').last}"
-                            : "No audio available",
-                        style: TextStyle(fontSize: 16, color: cardTextColor),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5.0),
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: sliderValue,
+                    builder: (context, value, child) {
+                      return Slider(
+                        value: value,
+                        min: 0.0,
+                        max: 1.0,
+                        activeColor: highlightColor,
+                        inactiveColor: Colors.grey[300],
+                        onChanged: (newValue) {
+                          if (totalDuration != null &&
+                              generatedAudioPath != null) {
+                            sliderValue.value = newValue;
+                            final newPosition =
+                                (newValue * totalDuration!.inSeconds).toInt();
+                            audioPlayer.seek(Duration(seconds: newPosition));
+                          }
+                        },
+                        onChangeEnd: (newValue) async {
+                          if (isPlaying && generatedAudioPath != null) {
+                            await audioPlayer.resume();
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     ),
   );
 }
 
 class AppConstants {
-  static const int maxSongs = 5;
+  static const int maxSongs = 10;
   static const List<String> supportedFormats = ['mp3', 'wav', 'ogg'];
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue:
-    'https://a201-2001-ee0-4f50-20e0-aa8b-4c16-c595-5c5a.ngrok-free.app',
-  );
+  static final String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
 }
 
 class HistoryManager {
@@ -136,7 +264,9 @@ class HistoryManager {
       }
       final userId = user.uid;
 
-      final databaseRef = FirebaseDatabase.instance.ref('lyrics_history/$userId');
+      final databaseRef = FirebaseDatabase.instance.ref(
+        'lyrics_history/$userId',
+      );
       final newSongRef = databaseRef.push();
 
       final songData = {
@@ -177,6 +307,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isRecording = false;
   final HistoryManager _historyManager = HistoryManager();
   List<Map<String, dynamic>> _historySongs = [];
+  final audio.AudioPlayer _audioPlayer = audio.AudioPlayer();
+  bool _isPlaying = false;
 
   Future<void> _deleteLocalAudio() async {
     if (_generatedAudioPath != null) {
@@ -194,14 +326,22 @@ class _HomeScreenState extends State<HomeScreen> {
           const SnackBar(content: Text('Đã xóa tệp nhạc thành công')),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi khi xóa tệp: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa tệp: $e')));
       }
     }
   }
 
   Future<void> _pickAudioFile() async {
+    if (_textPromptController.text.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng xóa nội dung text prompt trước khi chọn file âm thanh.'),
+        ),
+      );
+      return;
+    }
     try {
       const XTypeGroup typeGroup = XTypeGroup(
         label: 'audio',
@@ -209,12 +349,21 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
       if (file != null) {
+        final fileSize = await File(file.path).length();
+        if (fileSize > 10 * 1024 * 1024) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File âm thanh quá lớn (tối đa 10MB).'),
+            ),
+          );
+          return;
+        }
         final extension = file.path.split('.').last.toLowerCase();
         if (!AppConstants.supportedFormats.contains(extension)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Định dạng không được hỗ trợ. Vui lòng chọn ${AppConstants.supportedFormats.join(", ")}',
+                'Định dạng không hỗ trợ. Vui lòng chọn ${AppConstants.supportedFormats.join(", ")}',
               ),
             ),
           );
@@ -223,19 +372,15 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!await _isValidAudioDuration(file.path)) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tệp âm thanh phải dài ít nhất 1 giây'),
+              content: Text('Tệp âm thanh không hợp lệ hoặc quá ngắn (<10 giây).'),
             ),
           );
           return;
         }
+        await _resetAudioPlayer();
+        _resetOtherPrompts(PromptType.audio);
         setState(() {
-          _selectedPrompt = PromptType.audio;
           _selectedAudioPath = file.path;
-        });
-        await _uploadAudioFile(file.path);
-      } else {
-        setState(() {
-          _selectedPrompt = PromptType.none;
         });
       }
     } catch (e) {
@@ -246,9 +391,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<bool> _isValidAudioDuration(String filePath) async {
-    final player = AudioPlayer();
+    final player = audio.AudioPlayer();
     try {
-      await player.setSource(DeviceFileSource(filePath));
+      await player.setSource(audio.DeviceFileSource(filePath));
       final duration = await player.getDuration();
       await player.dispose();
       return duration != null && duration.inSeconds >= 1;
@@ -259,29 +404,51 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<bool> _isConnected() async {
     final connectivity = Connectivity();
-    var connectivityResult = await connectivity.checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.'),
+        ),
+      );
+      return false;
+    }
+    return true;
   }
 
   Future<void> _toggleRecording() async {
+    if (_textPromptController.text.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng xóa nội dung text prompt trước khi ghi âm.'),
+        ),
+      );
+      return;
+    }
     try {
       if (_isRecording) {
         final path = await _recorder.stopRecorder();
         if (path != null) {
+          final file = File(path);
+          final fileSize = await file.length();
+          if (fileSize > 10 * 1024 * 1024) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('File ghi âm quá lớn (tối đa 10MB).')),
+            );
+            await file.delete();
+            return;
+          }
           if (!await _isValidAudioDuration(path)) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Tệp âm thanh phải dài ít nhất 1 giây'),
-              ),
+              const SnackBar(content: Text('Tệp âm thanh phải dài ít nhất 10 giây')),
             );
+            await file.delete();
             return;
           }
           setState(() {
             _isRecording = false;
-            _selectedPrompt = PromptType.audio;
             _selectedAudioPath = path;
           });
-          await _uploadAudioFile(path);
         }
       } else {
         var status = await Permission.microphone.request();
@@ -289,8 +456,19 @@ class _HomeScreenState extends State<HomeScreen> {
           final directory = await getTemporaryDirectory();
           final filePath = '${directory.path}/recorded_audio.aac';
           await _recorder.startRecorder(toFile: filePath);
+          Future.delayed(Duration(seconds: 10), () async {
+            if (_isRecording) {
+              await _toggleRecording();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Ghi âm đã đạt giới hạn 10 giây')),
+              );
+            }
+          });
+          await _resetAudioPlayer();
+          _resetOtherPrompts(PromptType.audio);
           setState(() {
             _isRecording = true;
+            _selectedAudioPath = null;
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -305,49 +483,75 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _uploadAudioFile(String filePath) async {
-    if (_selectedPrompt != PromptType.audio) return;
-    if (!File(filePath).existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tệp âm thanh không tồn tại')),
-      );
-      return;
-    }
-    if (!await _isConnected()) {
+  Future<void> _togglePlayPause() async {
+    if (_selectedAudioPath == null || !await File(_selectedAudioPath!).exists()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.'),
+          content: Text('Tệp âm thanh không tồn tại hoặc không hợp lệ'),
         ),
       );
+      setState(() {
+        _selectedAudioPath = null;
+        _isPlaying = false;
+      });
       return;
     }
-
-    final String uploadUrl = '${AppConstants.apiBaseUrl}/generate_music';
-    var request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
-    request.files.add(await http.MultipartFile.fromPath('file', filePath));
-
     try {
-      var response = await request.send();
-      if (response.statusCode == 200) {
-        var responseBody = await response.stream.bytesToString();
-        var data = jsonDecode(responseBody);
-        String newAudioPath = data['audio_link'];
+      if (_audioPlayer.state == audio.PlayerState.playing) {
+        await _audioPlayer.pause();
         setState(() {
-          _selectedAudioPath = newAudioPath;
+          _isPlaying = false;
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upload file thất bại: ${response.statusCode}'),
-          ),
-        );
+        await _audioPlayer.play(audio.DeviceFileSource(_selectedAudioPath!));
+        setState(() {
+          _isPlaying = true;
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi upload file: $e')),
+        SnackBar(content: Text('Lỗi khi phát âm thanh: $e')),
       );
+      await _resetAudioPlayer();
     }
   }
+
+  Future<void> _resetAudioPlayer() async {
+    if (_audioPlayer.state != audio.PlayerState.stopped) {
+      await _audioPlayer.stop();
+    }
+    setState(() {
+      _isPlaying = false;
+    });
+  }
+
+  void _resetOtherPrompts(PromptType newPrompt) {
+    setState(() {
+      _selectedPrompt = newPrompt;
+      if (newPrompt == PromptType.audio) {
+        _textPromptController.clear();
+      } else if (newPrompt == PromptType.text) {
+        _selectedAudioPath = null;
+        _isRecording = false;
+      }
+    });
+  }
+
+  Future<void> _cleanOldFiles() async {
+    final directory = await getTemporaryDirectory();
+    final files = directory
+        .listSync()
+        .where((file) => file.path.endsWith('.mp3'))
+        .map((file) => File(file.path))
+        .toList();
+    if (files.length >= AppConstants.maxSongs) {
+      files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
+      for (var file in files.sublist(0, files.length - AppConstants.maxSongs + 1)) {
+        await file.delete();
+      }
+    }
+  }
+
 
   Future<void> _generateMusic() async {
     if (_lyricsController.text.trim().isEmpty) {
@@ -359,36 +563,27 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_isValidLyricsFormat(_lyricsController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Lời bài hát không đúng định dạng [mm:ss.xx] Lyric content',
-          ),
+          content: Text('Lời bài hát không đúng định dạng [mm:ss.xx] Lyric content'),
         ),
       );
       return;
     }
     if (_selectedPrompt == PromptType.none) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn Text Prompt hoặc Audio Prompt!'),
-        ),
+        const SnackBar(content: Text('Vui lòng chọn Text Prompt hoặc Audio Prompt!')),
       );
       return;
     }
     if (_selectedPrompt == PromptType.audio &&
-        (_selectedAudioPath == null ||
-            !File(_selectedAudioPath!).existsSync())) {
+        (_selectedAudioPath == null || !File(_selectedAudioPath!).existsSync())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn hoặc ghi âm một file âm thanh!'),
-        ),
+        const SnackBar(content: Text('Vui lòng chọn hoặc ghi âm một file âm thanh!')),
       );
       return;
     }
     if (!await _isConnected()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.'),
-        ),
+        const SnackBar(content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.')),
       );
       return;
     }
@@ -399,28 +594,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final String ngrokUrl = AppConstants.apiBaseUrl;
-      String? audioLink;
+      final String generateUrl = '$ngrokUrl/generate_music';
 
-      if (_selectedPrompt == PromptType.audio) {
-        final request = http.MultipartRequest(
-          'POST',
-          Uri.parse('$ngrokUrl/upload_audio'),
-        );
-        request.files.add(
-          await http.MultipartFile.fromPath('audio', _selectedAudioPath!),
-        );
-        final response = await request.send();
-        if (response.statusCode != 200) {
-          throw Exception('Tải file âm thanh thất bại: ${response.statusCode}');
-        }
-        final responseData = await response.stream.bytesToString();
-        audioLink = jsonDecode(responseData)['filename'];
-      }
-
-      Map<String, dynamic> requestData = {
-        'lyrics': _lyricsController.text.trim(),
-        'prompt_type': _selectedPrompt == PromptType.text ? 'text' : 'audio',
-      };
+      var request = http.MultipartRequest('POST', Uri.parse(generateUrl));
+      request.fields['lyrics'] = _lyricsController.text.trim();
+      request.fields['prompt_type'] = _selectedPrompt == PromptType.text ? 'text' : 'audio';
+      request.fields['audio_length'] = _selectedDuration.toString();
 
       if (_selectedPrompt == PromptType.text) {
         if (_textPromptController.text.trim().isEmpty) {
@@ -432,48 +611,49 @@ class _HomeScreenState extends State<HomeScreen> {
           });
           return;
         }
-        requestData['ref_prompt'] = _textPromptController.text.trim();
+        request.fields['ref_prompt'] = _textPromptController.text.trim();
       } else {
-        requestData['audio_link'] = audioLink;
+        request.files.add(
+          await http.MultipartFile.fromPath('file', _selectedAudioPath!),
+        );
       }
 
-      final response = await http.post(
-        Uri.parse('$ngrokUrl/generate_music'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestData),
-      );
-
+      final response = await request.send();
       if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
+        final bytes = await response.stream.toBytes();
         if (bytes.isEmpty) throw Exception('Dữ liệu MP3 từ server trống');
 
+        await _cleanOldFiles(); // Xóa file cũ trước khi lưu file mới
         final directory = await getTemporaryDirectory();
         final prefs = await SharedPreferences.getInstance();
         int counter = (prefs.getInt('music_counter') ?? 0) + 1;
-        final filePath = '${directory.path}/music_${counter.toString().padLeft(2, '0')}.mp3';
+        final filePath =
+            '${directory.path}/music_${counter.toString().padLeft(2, '0')}.mp3';
         final file = File(filePath);
         await file.writeAsBytes(bytes);
         await prefs.setInt('music_counter', counter);
         await prefs.setString('generated_audio_path', filePath);
 
+        await _resetAudioPlayer();
         setState(() {
           _generatedAudioPath = filePath;
           _selectedAudioPath = null;
           _lyricsController.clear();
-          _textPromptController.text = '';
+          _textPromptController.clear();
           _selectedPrompt = PromptType.none;
-          _isGenerating = false;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tạo nhạc thành công! Nhấn vào card để nghe'),
-          ),
+          const SnackBar(content: Text('Tạo nhạc thành công!')),
         );
       } else {
-        throw Exception(
-          'Lỗi từ server: ${response.statusCode} - ${response.body}',
-        );
+        final responseBody = await response.stream.bytesToString();
+        String errorMessage = 'Lỗi từ server: ${response.statusCode}';
+        try {
+          final errorJson = jsonDecode(responseBody);
+          errorMessage += ' - ${errorJson['message'] ?? responseBody}';
+        } catch (_) {}
+        throw Exception(errorMessage);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -481,23 +661,29 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       setState(() {
         _generatedAudioPath = null;
+      });
+    } finally {
+      setState(() {
         _isGenerating = false;
       });
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('generated_audio_path');
     }
   }
 
   bool _isValidLyricsFormat(String lyrics) {
     final lines = lyrics.trim().split('\n');
-    final regex = RegExp(r'^\[\d{2}:\d{2}\.\d{2}\].+$');
-    return lines.every(
-          (line) => line.trim().isEmpty || regex.hasMatch(line.trim()),
-    );
+    final regex = RegExp(r'^\[([0-5][0-9]):([0-5][0-9])\.(\d{2})\]\s*.+$');
+    return lines.every((line) {
+      if (line.trim().isEmpty) return true;
+      final match = regex.firstMatch(line.trim());
+      return match != null;
+    });
   }
 
   Future<void> _initRecorder() async {
     try {
+      if (!_recorder.isStopped) {
+        await _recorder.closeRecorder();
+      }
       await _recorder.openRecorder();
       final status = await Permission.microphone.request();
       if (status != PermissionStatus.granted) {
@@ -508,21 +694,37 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi khởi tạo recorder: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi khởi tạo recorder: $e')));
     }
   }
 
   Future<void> _loadGeneratedAudioPath() async {
     final prefs = await SharedPreferences.getInstance();
     final savedPath = prefs.getString('generated_audio_path');
-    if (savedPath != null && await File(savedPath).exists()) {
-      setState(() {
-        _generatedAudioPath = savedPath;
-      });
-    } else {
-      await prefs.remove('generated_audio_path');
+    if (savedPath != null) {
+      try {
+        final file = File(savedPath);
+        if (await file.exists() && await _isValidAudioDuration(savedPath)) {
+          final lastModified = await file.lastModified();
+          if (DateTime.now().difference(lastModified).inHours < 24) {
+            setState(() {
+              _generatedAudioPath = savedPath;
+            });
+            return;
+          }
+        }
+        await prefs.remove('generated_audio_path');
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        await prefs.remove('generated_audio_path');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi tải tệp âm thanh đã lưu: $e')),
+        );
+      }
     }
   }
 
@@ -532,52 +734,42 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng đăng nhập để xem lịch sử')),
       );
+      // Navigator.pushNamed(context, '/login'); // Tùy chọn: chuyển hướng đến màn hình đăng nhập
       return;
     }
     final userId = user.uid;
 
     try {
       final databaseRef = FirebaseDatabase.instance.ref('lyrics_history/$userId');
-      databaseRef.orderByChild('created_at').onValue.listen(
-            (event) {
-          final data = event.snapshot.value;
-          final List<Map<String, dynamic>> loadedSongs = [];
-          if (data != null && data is Map) {
-            data.forEach((key, value) {
-              if (value is Map) {
-                loadedSongs.add({
-                  'id': key,
-                  'title': value['title']?.toString() ?? 'Unknown Title',
-                  'theme_name':
-                  value['theme_name']?.toString() ?? 'Unknown Style',
-                  'file_url': value['file_url']?.toString() ?? '',
-                  'created_at':
-                  value['created_at'] is int
-                      ? value['created_at']
-                      : DateTime.now().millisecondsSinceEpoch,
-                });
-              }
+      final snapshot = await databaseRef.orderByChild('created_at').limitToLast(50).once();
+      final data = snapshot.snapshot.value;
+      final List<Map<String, dynamic>> loadedSongs = [];
+      if (data != null && data is Map) {
+        data.forEach((key, value) {
+          if (value is Map) {
+            loadedSongs.add({
+              'id': key,
+              'title': value['title']?.toString() ?? 'Unknown Title',
+              'theme_name': value['theme_name']?.toString() ?? 'Unknown Style',
+              'file_url': value['file_url']?.toString() ?? '',
+              'created_at':
+              value['created_at'] is int
+                  ? value['created_at']
+                  : DateTime.now().millisecondsSinceEpoch,
             });
-            loadedSongs.sort(
-                  (a, b) => (b['created_at'] as int).compareTo(
-                a['created_at'] as int,
-              ),
-            );
           }
+        });
+        loadedSongs.sort(
+              (a, b) => (b['created_at'] as int).compareTo(a['created_at'] as int),
+        );
+      }
 
-          setState(() {
-            _historySongs = loadedSongs;
-          });
-        },
-        onError: (error) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi khi tải lịch sử: $error')),
-          );
-        },
-      );
+      setState(() {
+        _historySongs = loadedSongs;
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi truy cập Firebase: $e')),
+        SnackBar(content: Text('Lỗi khi truy cập lịch sử: $e')),
       );
     }
   }
@@ -588,11 +780,21 @@ class _HomeScreenState extends State<HomeScreen> {
     _initRecorder();
     _loadGeneratedAudioPath();
     _loadHistorySongs();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      setState(() {
+        _isPlaying = state == audio.PlayerState.playing;
+      });
+    });
+    _textPromptController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _recorder.closeRecorder();
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
     _lyricsController.dispose();
     _textPromptController.dispose();
     _scrollController.dispose();
@@ -609,7 +811,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My App'),
+        title: const Text('DIFFRHYTHM AI'),
         backgroundColor: highlightColor,
         actions: [
           Builder(
@@ -636,8 +838,8 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Enter Your Lyrics:',
-              style: GoogleFonts.poppins(
+              'Lời Bài Hát:',
+              style: GoogleFonts.beVietnamPro(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: textColor,
@@ -647,10 +849,13 @@ class _HomeScreenState extends State<HomeScreen> {
             TextField(
               controller: _lyricsController,
               maxLines: 5,
-              style: GoogleFonts.raleway(fontSize: 18, color: Colors.black),
+              style: GoogleFonts.beVietnamPro(
+                fontSize: 18,
+                color: Colors.black,
+              ),
               decoration: InputDecoration(
-                hintText: 'Type your lyrics here...',
-                hintStyle: GoogleFonts.raleway(
+                hintText: 'Nhập lời bài hát của bạn tại đây...',
+                hintStyle: GoogleFonts.beVietnamPro(
                   fontSize: 18,
                   color: isDarkTheme ? Colors.black : Colors.black,
                 ),
@@ -673,8 +878,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: ExpansionTile(
                 title: Text(
-                  'Best Practices Guide',
-                  style: GoogleFonts.poppins(
+                  'Hướng Dẫn',
+                  style: GoogleFonts.beVietnamPro(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: cardTextColor,
@@ -693,9 +898,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           '1. Lyrics Format Requirements\n'
-                              'Each line must follow: [mm:ss.xx] Lyric content\n'
-                              'Example of valid format:',
-                          style: GoogleFonts.raleway(
+                          'Each line must follow: [mm:ss.xx] Lyric content\n'
+                          'Example of valid format:',
+                          style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
                           ),
@@ -713,14 +918,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Text(
                                   '[00:10.00] Moonlight spills through broken blinds',
-                                  style: GoogleFonts.raleway(
+                                  style: GoogleFonts.beVietnamPro(
                                     fontSize: 15,
                                     color: cardTextColor,
                                   ),
                                 ),
                                 Text(
                                   '[00:13.20] Your shadow dances on the dashboard shrine',
-                                  style: GoogleFonts.raleway(
+                                  style: GoogleFonts.beVietnamPro(
                                     fontSize: 15,
                                     color: cardTextColor,
                                   ),
@@ -731,27 +936,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Text(
                           '2. Audio Prompt Requirements\n'
-                              'Reference audio should be ≥ 1 second, audio >10 seconds will be randomly clipped into 10 seconds\n'
-                              'For optimal results, the 10-second clips should be carefully selected\n'
-                              'Shorter clips may lead to incoherent generation',
-                          style: GoogleFonts.raleway(
+                          'Reference audio should be ≥ 1 second, audio >10 seconds will be randomly clipped into 10 seconds\n'
+                          'For optimal results, the 10-second clips should be carefully selected\n'
+                          'Shorter clips may lead to incoherent generation',
+                          style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
                           ),
                         ),
                         Text(
                           '3. Supported Languages\n'
-                              'Chinese and English\n'
-                              'More languages coming soon',
-                          style: GoogleFonts.raleway(
+                          'Chinese and English\n'
+                          'More languages coming soon',
+                          style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
                           ),
                         ),
                         Text(
                           '4. Others\n'
-                              'If loading audio result is slow, you can select Output Format as mp3 in Advanced Settings.',
-                          style: GoogleFonts.raleway(
+                          'If loading audio result is slow, you can select Output Format as mp3 in Advanced Settings.',
+                          style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
                           ),
@@ -774,8 +979,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Music Duration',
-                      style: GoogleFonts.poppins(
+                      'Thời Lượng',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: cardTextColor,
@@ -789,7 +994,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: RadioListTile<int>(
                             title: Text(
                               '95s',
-                              style: GoogleFonts.raleway(
+                              style: GoogleFonts.beVietnamPro(
                                 fontSize: 20,
                                 color: cardTextColor,
                               ),
@@ -808,7 +1013,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: RadioListTile<int>(
                             title: Text(
                               '285s',
-                              style: GoogleFonts.raleway(
+                              style: GoogleFonts.beVietnamPro(
                                 fontSize: 20,
                                 color: cardTextColor,
                               ),
@@ -836,7 +1041,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(color: highlightColor, width: 1.5),
               ),
-              color: _selectedPrompt == PromptType.audio ? highlightColor : cardColor,
+              color: cardColor, // Giữ màu trắng cố định
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -844,8 +1049,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Audio Prompt',
-                      style: GoogleFonts.poppins(
+                      'Mô Tả Âm Thanh',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: cardTextColor,
@@ -856,20 +1061,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _selectedPrompt == PromptType.text ? null : () {
-                              setState(() {
-                                _selectedPrompt = PromptType.audio;
-                              });
-                              _pickAudioFile();
-                            },
+                            onPressed:
+                                _textPromptController.text.isNotEmpty ||
+                                        _isRecording
+                                    ? null
+                                    : () {
+                                      setState(() {
+                                        _selectedPrompt = PromptType.audio;
+                                      });
+                                      _pickAudioFile();
+                                    },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: highlightColor,
                               foregroundColor: cardTextColor,
-                              side: BorderSide(color: cardTextColor, width: 1.0),
+                              side: BorderSide(
+                                color: cardTextColor,
+                                width: 1.0,
+                              ),
+                              disabledBackgroundColor: Colors.grey[300],
                             ),
                             child: Text(
-                              'Upload Audio',
-                              style: GoogleFonts.raleway(
+                              'Tải âm thanh',
+                              style: GoogleFonts.beVietnamPro(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: cardTextColor,
@@ -880,15 +1093,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 15),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _selectedPrompt == PromptType.text ? null : _toggleRecording,
+                            onPressed:
+                                _textPromptController.text.isNotEmpty
+                                    ? null
+                                    : _toggleRecording,
                             style: ElevatedButton.styleFrom(
-                              side: BorderSide(color: cardTextColor, width: 1.0),
-                              backgroundColor: _isRecording ? Colors.red : highlightColor,
+                              side: BorderSide(
+                                color: cardTextColor,
+                                width: 1.0,
+                              ),
+                              backgroundColor:
+                                  _isRecording ? Colors.red : highlightColor,
                               foregroundColor: cardTextColor,
+                              disabledBackgroundColor: Colors.grey[300],
                             ),
                             child: Text(
-                              _isRecording ? 'Stop Recording' : 'Record',
-                              style: GoogleFonts.raleway(
+                              _isRecording ? 'Dừng ghi âm' : 'Ghi âm',
+                              style: GoogleFonts.beVietnamPro(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: cardTextColor,
@@ -897,7 +1118,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ],
-                    ),
+                    ), // Thêm dấu phẩy ở đây
                   ],
                 ),
               ),
@@ -916,11 +1137,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
+                        IconButton(
+                          icon: Icon(
+                            _isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.blue,
+                          ),
+                          onPressed: _togglePlayPause,
+                        ),
                         const SizedBox(width: 15),
                         Expanded(
                           child: Text(
                             "File: ${_selectedAudioPath!.split('/').last}",
-                            style: TextStyle(fontSize: 16, color: cardTextColor),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: cardTextColor,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -930,7 +1161,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () {
                             setState(() {
                               _selectedAudioPath = null;
+                              _isPlaying = false;
                             });
+                            if (_audioPlayer.state !=
+                                audio.PlayerState.stopped) {
+                              _audioPlayer.stop();
+                            }
                           },
                         ),
                       ],
@@ -943,9 +1179,9 @@ class _HomeScreenState extends State<HomeScreen> {
               elevation: 4,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: highlightColor, width: 1.5),
+                side: BorderSide(color: highlightColor, width: 1.0),
               ),
-              color: _selectedPrompt == PromptType.text ? highlightColor : cardColor,
+              color: Colors.white, // Giữ màu nền trắng cố định
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -953,8 +1189,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Text Prompt',
-                      style: GoogleFonts.poppins(
+                      'Mô Tả Phong Cách',
+                      style: GoogleFonts.beVietnamPro(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: cardTextColor,
@@ -963,19 +1199,33 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 15),
                     TextField(
                       controller: _textPromptController,
-                      enabled: _selectedPrompt != PromptType.audio,
+                      enabled:
+                          _selectedAudioPath == null &&
+                          !_isRecording, // Vô hiệu hóa khi có file âm thanh hoặc đang ghi âm
                       onTap: () {
-                        if (_selectedPrompt != PromptType.audio) {
-                          setState(() {
-                            _selectedPrompt = PromptType.text;
-                            _selectedAudioPath = null;
-                          });
+                        if (_selectedAudioPath != null || _isRecording) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Vui lòng hủy file âm thanh hoặc dừng ghi âm trước khi nhập text prompt.',
+                              ),
+                            ),
+                          );
+                          return;
                         }
+                        setState(() {
+                          _selectedPrompt = PromptType.text;
+                        });
                       },
-                      style: GoogleFonts.raleway(fontSize: 16, color: Colors.black),
+                      style: GoogleFonts.beVietnamPro(
+                        fontSize: 16,
+                        color: Colors.black,
+                      ),
                       decoration: InputDecoration(
-                        labelText: 'Enter the Text Prompt, eg: emotional piano pop',
-                        labelStyle: GoogleFonts.raleway(
+                        prefixIcon: Icon(Icons.create),
+                        labelText:
+                            'Enter the Text Prompt, eg: emotional piano pop',
+                        labelStyle: GoogleFonts.beVietnamPro(
                           fontSize: 16,
                           color: isDarkTheme ? Colors.black : Colors.black,
                         ),
@@ -987,10 +1237,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: highlightColor, width: 1.5),
+                          borderSide: BorderSide(
+                            color: highlightColor,
+                            width: 1.5,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black, width: 2.0),
+                          borderSide: BorderSide(
+                            color: Colors.black,
+                            width: 2.0,
+                          ),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.grey,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -1002,42 +1264,51 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(4.0),
-              child: _isGenerating
-                  ? const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFC0CB)),
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Đang tạo nhạc...',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              )
-                  : ElevatedButton(
-                onPressed: _isGenerating ? null : _generateMusic,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: highlightColor,
-                  foregroundColor: cardTextColor,
-                  shape: RoundedRectangleBorder(
-                    side: BorderSide(color: cardTextColor, width: 1.0),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  disabledBackgroundColor: highlightColor.withOpacity(0.5),
-                ),
-                child: Text(
-                  'Generate Music',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: cardTextColor,
-                  ),
-                ),
-              ),
+              child:
+                  _isGenerating
+                      ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFFFFC0CB),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Nhạc Đang Trong Quá Trình Xử Lý',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                      : ElevatedButton(
+                        onPressed: _isGenerating ? null : _generateMusic,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: highlightColor,
+                          foregroundColor: cardTextColor,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: cardTextColor, width: 1.0),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          disabledBackgroundColor: highlightColor.withOpacity(
+                            0.5,
+                          ),
+                        ),
+                        child: Text(
+                          'Tạo Nhạc',
+                          style: GoogleFonts.beVietnamPro(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: cardTextColor,
+                          ),
+                        ),
+                      ),
             ),
-            const SizedBox(height: 15),
             if (_generatedAudioPath != null)
               buildMusicCard(
                 _generatedAudioPath,
