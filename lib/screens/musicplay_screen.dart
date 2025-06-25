@@ -4,8 +4,11 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'home_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
 
 void main() {
   runApp(const MusicPlayerApp());
@@ -47,10 +50,26 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
   bool _isPlaying = false;
   bool _isSaved = false;
 
+  late BannerAd _bannerAd;
+  bool _isBannerAdReady = false;
+
   @override
   void initState() {
     super.initState();
     _initializeAudio();
+
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // banner test
+      request: AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) => setState(() => _isBannerAdReady = true),
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+        },
+      ),
+    )..load();
+
     _audioPlayer.onPositionChanged.listen((Duration position) {
       if (mounted) {
         setState(() {
@@ -75,7 +94,8 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
               state == PlayerState.stopped ||
               state == PlayerState.completed) {
             _isPlaying = false;
-            if (state == PlayerState.completed || state == PlayerState.stopped) {
+            if (state == PlayerState.completed ||
+                state == PlayerState.stopped) {
               _currentSliderValue = 0;
             }
           }
@@ -95,7 +115,9 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
       } else if (widget.generatedAudioPath != null &&
           File(widget.generatedAudioPath!).existsSync()) {
         // Phát file cục bộ
-        await _audioPlayer.setSource(DeviceFileSource(widget.generatedAudioPath!));
+        await _audioPlayer.setSource(
+          DeviceFileSource(widget.generatedAudioPath!),
+        );
       } else {
         throw Exception('Không có file nhạc để phát');
       }
@@ -146,9 +168,9 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi phát/tạm dừng: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi phát/tạm dừng: $e')));
       setState(() {
         _isPlaying = false;
       });
@@ -167,9 +189,9 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng đăng nhập lại')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Vui lòng đăng nhập lại')));
         return;
       }
 
@@ -187,13 +209,13 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
         _isSaved = true;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lưu bài hát thành công!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Lưu bài hát thành công!')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi lưu bài hát: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi lưu bài hát: $e')));
     }
   }
 
@@ -201,6 +223,7 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
   void dispose() {
     _audioPlayer.stop();
     _audioPlayer.dispose();
+    _bannerAd.dispose();
     super.dispose();
   }
 
@@ -213,18 +236,21 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final fileName = widget.fileUrl != null
-        ? widget.fileUrl!.split('%2F').last.split('?').first
-        : widget.generatedAudioPath != null
-        ? widget.generatedAudioPath!.split('/').last
-        : 'No Song Available';
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final fileName =
+        widget.fileUrl != null
+            ? widget.fileUrl!.split('%2F').last.split('?').first
+            : widget.generatedAudioPath != null
+            ? widget.generatedAudioPath!.split('/').last
+            : 'No Song Available';
 
-    final highlightColor = Colors.black;
+    final highlightColor = isDarkTheme ? Colors.white : Colors.black;
+    final textColor = isDarkTheme ? Colors.white : Colors.black;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkTheme ? Colors.black : Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkTheme ? Colors.grey[900] : Colors.white,
         automaticallyImplyLeading: false,
         title: Stack(
           alignment: Alignment.center,
@@ -233,13 +259,13 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
               alignment: Alignment.center,
               child: Text(
                 fileName,
-                style:  TextStyle(color: highlightColor, fontSize: 20),
+                style: TextStyle(color: highlightColor, fontSize: 20),
               ),
             ),
             Align(
               alignment: Alignment.centerLeft,
               child: IconButton(
-                icon:  Icon(Icons.arrow_drop_down, color: highlightColor),
+                icon: Icon(Icons.arrow_drop_down, color: highlightColor),
                 onPressed: () {
                   Navigator.pop(context);
                 },
@@ -256,9 +282,12 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
                       Icons.save,
                       color: _isSaved ? Colors.grey : highlightColor,
                     ),
-                    onPressed: (_isAudioLoaded && widget.generatedAudioPath != null && !_isSaved)
-                        ? _saveSongToFirebase
-                        : null,
+                    onPressed:
+                        (_isAudioLoaded &&
+                                widget.generatedAudioPath != null &&
+                                !_isSaved)
+                            ? _saveSongToFirebase
+                            : null,
                     tooltip: 'Save',
                   ),
                 ],
@@ -268,10 +297,17 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(10.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (_isBannerAdReady)
+              Container(
+                height: _bannerAd.size.height.toDouble(),
+                width: _bannerAd.size.width.toDouble(),
+                child: AdWidget(ad: _bannerAd),
+              ),
+            SizedBox(height: 20),
             ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
               child: Container(
@@ -290,28 +326,25 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
             Text(
               fileName,
               style: GoogleFonts.poppins(
-                color: highlightColor,
+                color: textColor,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-               'DIFFRHYTHM AI',
-              style: GoogleFonts.poppins(
-                color: highlightColor,
-                fontSize: 16,
-              ),
+              'DIFFRHYTHM AI',
+              style: GoogleFonts.poppins(color: textColor, fontSize: 16),
             ),
             const SizedBox(height: 16),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.format_quote, color: Colors.black),
+                Icon(Icons.format_quote, color: textColor),
                 SizedBox(width: 16),
-                Icon(Icons.favorite_border, color: Colors.black),
+                Icon(Icons.favorite_border, color: textColor),
                 SizedBox(width: 16),
-                Icon(Icons.more_horiz, color: Colors.black),
+                Icon(Icons.more_horiz, color: textColor),
               ],
             ),
             const SizedBox(height: 32),
@@ -319,34 +352,40 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  _formatDuration(Duration(seconds: _currentSliderValue.toInt())),
-                  style: const TextStyle(color: Colors.black),
+                  _formatDuration(
+                    Duration(seconds: _currentSliderValue.toInt()),
+                  ),
+                  style: TextStyle(color: textColor),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Slider(
                     value: _currentSliderValue,
                     min: 0,
-                    max: _totalDuration.inSeconds.toDouble() > 0
-                        ? _totalDuration.inSeconds.toDouble()
-                        : 1.0,
-                    onChanged: _isAudioLoaded
-                        ? (value) async {
-                      setState(() {
-                        _currentSliderValue = value;
-                      });
-                      await _audioPlayer
-                          .seek(Duration(seconds: value.toInt()));
-                    }
-                        : null,
+                    max:
+                        _totalDuration.inSeconds.toDouble() > 0
+                            ? _totalDuration.inSeconds.toDouble()
+                            : 1.0,
+                    onChanged:
+                        _isAudioLoaded
+                            ? (value) async {
+                              setState(() {
+                                _currentSliderValue = value;
+                              });
+                              await _audioPlayer.seek(
+                                Duration(seconds: value.toInt()),
+                              );
+                            }
+                            : null,
                     activeColor: highlightColor,
-                    inactiveColor: Colors.black,
+                    inactiveColor:
+                        isDarkTheme ? Colors.grey[700] : Colors.black,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   _formatDuration(_totalDuration),
-                  style: const TextStyle(color: Colors.black),
+                  style: TextStyle(color: textColor),
                 ),
               ],
             ),
@@ -355,17 +394,22 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon:  Icon(Icons.replay_10, color: highlightColor),
-                  onPressed: _isAudioLoaded
-                      ? () {
-                    setState(() {
-                      _currentSliderValue = (_currentSliderValue - 10)
-                          .clamp(0, _totalDuration.inSeconds.toDouble());
-                      _audioPlayer.seek(
-                          Duration(seconds: _currentSliderValue.toInt()));
-                    });
-                  }
-                      : null,
+                  icon: Icon(Icons.replay_10, color: highlightColor),
+                  onPressed:
+                      _isAudioLoaded
+                          ? () {
+                            setState(() {
+                              _currentSliderValue = (_currentSliderValue - 10)
+                                  .clamp(
+                                    0,
+                                    _totalDuration.inSeconds.toDouble(),
+                                  );
+                              _audioPlayer.seek(
+                                Duration(seconds: _currentSliderValue.toInt()),
+                              );
+                            });
+                          }
+                          : null,
                   tooltip: 'Rewind 10 seconds',
                 ),
                 IconButton(
@@ -378,17 +422,22 @@ class _MusicPlayScreenState extends State<MusicPlayScreen> {
                   tooltip: 'Play/Pause',
                 ),
                 IconButton(
-                  icon:  Icon(Icons.forward_10, color: highlightColor),
-                  onPressed: _isAudioLoaded
-                      ? () {
-                    setState(() {
-                      _currentSliderValue = (_currentSliderValue + 10)
-                          .clamp(0, _totalDuration.inSeconds.toDouble());
-                      _audioPlayer.seek(
-                          Duration(seconds: _currentSliderValue.toInt()));
-                    });
-                  }
-                      : null,
+                  icon: Icon(Icons.forward_10, color: highlightColor),
+                  onPressed:
+                      _isAudioLoaded
+                          ? () {
+                            setState(() {
+                              _currentSliderValue = (_currentSliderValue + 10)
+                                  .clamp(
+                                    0,
+                                    _totalDuration.inSeconds.toDouble(),
+                                  );
+                              _audioPlayer.seek(
+                                Duration(seconds: _currentSliderValue.toInt()),
+                              );
+                            });
+                          }
+                          : null,
                   tooltip: 'Forward 10 seconds',
                 ),
               ],

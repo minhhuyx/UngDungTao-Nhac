@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class SettingsCard extends StatelessWidget {
   final String audioQuality;
@@ -110,19 +111,17 @@ class SettingsCard extends StatelessWidget {
   }
 
   Widget _buildListTile(
-      IconData icon,
-      String title, {
-        required Color textColor,
-        required Color iconColor,
-        Widget? trailing,
-      }) {
+    IconData icon,
+    String title, {
+    required Color textColor,
+    required Color iconColor,
+    Widget? trailing,
+  }) {
     return ListTile(
       leading: Icon(icon, color: iconColor),
-      title: Text(
-        title,
-        style: GoogleFonts.beVietnamPro(color: textColor),
-      ),
-      trailing: trailing ??
+      title: Text(title, style: GoogleFonts.beVietnamPro(color: textColor)),
+      trailing:
+          trailing ??
           Icon(
             Icons.arrow_forward_ios,
             color: iconColor.withOpacity(0.6),
@@ -135,19 +134,16 @@ class SettingsCard extends StatelessWidget {
   }
 
   Widget _buildSwitchTile(
-      IconData icon,
-      String title,
-      bool value,
-      ValueChanged<bool> onChanged,
-      Color textColor,
-      Color iconColor,
-      ) {
+    IconData icon,
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+    Color textColor,
+    Color iconColor,
+  ) {
     return ListTile(
       leading: Icon(icon, color: iconColor),
-      title: Text(
-        title,
-        style: GoogleFonts.beVietnamPro(color: textColor),
-      ),
+      title: Text(title, style: GoogleFonts.beVietnamPro(color: textColor)),
       trailing: Switch(
         value: value,
         onChanged: onChanged,
@@ -159,19 +155,16 @@ class SettingsCard extends StatelessWidget {
   }
 
   Widget _buildActionTile(
-      IconData icon,
-      String title,
-      VoidCallback onTap,
-      Color textColor,
-      Color iconColor,
-      Color arrowColor,
-      ) {
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+    Color textColor,
+    Color iconColor,
+    Color arrowColor,
+  ) {
     return ListTile(
       leading: Icon(icon, color: iconColor),
-      title: Text(
-        title,
-        style: GoogleFonts.beVietnamPro(color: textColor),
-      ),
+      title: Text(title, style: GoogleFonts.beVietnamPro(color: textColor)),
       trailing: Icon(Icons.arrow_forward_ios, color: arrowColor, size: 16),
       onTap: onTap,
     );
@@ -199,11 +192,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   final highlightColor = const Color(0xFFADD8E6);
 
+  late BannerAd _bannerAd;
+  bool _isBannerAdReady = false;
+
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _settingsFuture = _loadSettings();
+
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // banner test
+      request: AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) => setState(() => _isBannerAdReady = true),
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd.dispose();
+    super.dispose();
   }
 
   void _loadUserInfo() {
@@ -293,14 +307,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       String errorMessage = 'Lỗi khi lưu cài đặt';
       if (e.toString().contains('permission-denied')) {
         errorMessage =
-        'Không có quyền lưu cài đặt. Vui lòng kiểm tra cấu hình Firebase.';
+            'Không có quyền lưu cài đặt. Vui lòng kiểm tra cấu hình Firebase.';
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            errorMessage,
-            style: GoogleFonts.beVietnamPro(),
-          ),
+          content: Text(errorMessage, style: GoogleFonts.beVietnamPro()),
         ),
       );
     }
@@ -314,10 +325,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await cacheDir.delete(recursive: true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Cache cleared!',
-              style: GoogleFonts.beVietnamPro(),
-            ),
+            content: Text('Cache cleared!', style: GoogleFonts.beVietnamPro()),
           ),
         );
       } else {
@@ -346,32 +354,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _logout() async {
     bool? confirm = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Xác nhận đăng xuất',
-          style: GoogleFonts.beVietnamPro(),
-        ),
-        content: Text(
-          'Bạn có chắc chắn muốn đăng xuất?',
-          style: GoogleFonts.beVietnamPro(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Hủy',
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Xác nhận đăng xuất',
               style: GoogleFonts.beVietnamPro(),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Đăng xuất',
+            content: Text(
+              'Bạn có chắc chắn muốn đăng xuất?',
               style: GoogleFonts.beVietnamPro(),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Hủy', style: GoogleFonts.beVietnamPro()),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Đăng xuất', style: GoogleFonts.beVietnamPro()),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm != true) return;
@@ -409,179 +412,179 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     final TextEditingController passwordController = TextEditingController();
     final TextEditingController currentPasswordController =
-    TextEditingController();
+        TextEditingController();
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Chỉnh sửa hồ sơ',
-          style: GoogleFonts.beVietnamPro(),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Tên hiển thị',
-                border: const OutlineInputBorder(),
-                labelStyle: GoogleFonts.beVietnamPro(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: currentPasswordController,
-              decoration: InputDecoration(
-                labelText: 'Mật khẩu hiện tại',
-                border: const OutlineInputBorder(),
-                labelStyle: GoogleFonts.beVietnamPro(),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(
-                labelText: 'Mật khẩu mới (để trống nếu không thay đổi)',
-                border: const OutlineInputBorder(),
-                labelStyle: GoogleFonts.beVietnamPro(),
-              ),
-              obscureText: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Hủy',
-              style: GoogleFonts.beVietnamPro(),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (passwordController.text.isNotEmpty &&
-                  currentPasswordController.text.length < 6) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Mật khẩu hiện tại phải có ít nhất 6 ký tự',
-                      style: GoogleFonts.beVietnamPro(),
-                    ),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Chỉnh sửa hồ sơ', style: GoogleFonts.beVietnamPro()),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Tên hiển thị',
+                    border: const OutlineInputBorder(),
+                    labelStyle: GoogleFonts.beVietnamPro(),
                   ),
-                );
-                return;
-              }
-
-              if (passwordController.text.isNotEmpty &&
-                  passwordController.text.length < 6) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Mật khẩu mới phải có ít nhất 6 ký tự',
-                      style: GoogleFonts.beVietnamPro(),
-                    ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: currentPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Mật khẩu hiện tại',
+                    border: const OutlineInputBorder(),
+                    labelStyle: GoogleFonts.beVietnamPro(),
                   ),
-                );
-                return;
-              }
-
-              try {
-                if (nameController.text.isNotEmpty &&
-                    nameController.text != _currentUser?.displayName) {
-                  await _currentUser?.updateDisplayName(nameController.text);
-                }
-
-                if (passwordController.text.isNotEmpty) {
-                  try {
-                    final credential = EmailAuthProvider.credential(
-                      email: _currentUser!.email!,
-                      password: currentPasswordController.text,
-                    );
-                    await _currentUser!.reauthenticateWithCredential(credential);
-                    await _currentUser?.updatePassword(passwordController.text);
-                  } on FirebaseAuthException catch (e) {
+                  obscureText: true,
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'Mật khẩu mới (để trống nếu không thay đổi)',
+                    border: const OutlineInputBorder(),
+                    labelStyle: GoogleFonts.beVietnamPro(),
+                  ),
+                  obscureText: true,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Hủy', style: GoogleFonts.beVietnamPro()),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (passwordController.text.isNotEmpty &&
+                      currentPasswordController.text.length < 6) {
                     Navigator.pop(context);
-                    String errorMessage;
-                    if (e.code == 'wrong-password') {
-                      errorMessage = 'Mật khẩu hiện tại không đúng';
-                    } else if (e.code == 'too-many-requests') {
-                      errorMessage = 'Quá nhiều yêu cầu, vui lòng thử lại sau';
-                    } else if (e.code == 'user-mismatch') {
-                      errorMessage = 'Thông tin xác thực không khớp';
-                    } else {
-                      errorMessage = 'Lỗi xác thực';
-                      print(
-                          'FirebaseAuthException: code=${e.code}, message=${e.message}');
-                    }
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          errorMessage,
-                          style: GoogleFonts.beVietnamPro(),
-                        ),
-                      ),
-                    );
-                    return;
-                  } catch (e) {
-                    Navigator.pop(context);
-                    print('Unexpected error during reauthentication: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Lỗi xác thực không xác định',
+                          'Mật khẩu hiện tại phải có ít nhất 6 ký tự',
                           style: GoogleFonts.beVietnamPro(),
                         ),
                       ),
                     );
                     return;
                   }
-                }
 
-                await _currentUser?.reload();
-                _loadUserInfo();
+                  if (passwordController.text.isNotEmpty &&
+                      passwordController.text.length < 6) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Mật khẩu mới phải có ít nhất 6 ký tự',
+                          style: GoogleFonts.beVietnamPro(),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
 
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Cập nhật hồ sơ thành công!',
-                      style: GoogleFonts.beVietnamPro(),
-                    ),
-                  ),
-                );
-              } catch (e) {
-                Navigator.pop(context);
-                print('Lỗi khi cập nhật hồ sơ: $e');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Lỗi khi cập nhật hồ sơ: $e',
-                      style: GoogleFonts.beVietnamPro(),
-                    ),
-                  ),
-                );
-              }
-            },
-            child: Text(
-              'Lưu',
-              style: GoogleFonts.beVietnamPro(),
-            ),
+                  try {
+                    if (nameController.text.isNotEmpty &&
+                        nameController.text != _currentUser?.displayName) {
+                      await _currentUser?.updateDisplayName(
+                        nameController.text,
+                      );
+                    }
+
+                    if (passwordController.text.isNotEmpty) {
+                      try {
+                        final credential = EmailAuthProvider.credential(
+                          email: _currentUser!.email!,
+                          password: currentPasswordController.text,
+                        );
+                        await _currentUser!.reauthenticateWithCredential(
+                          credential,
+                        );
+                        await _currentUser?.updatePassword(
+                          passwordController.text,
+                        );
+                      } on FirebaseAuthException catch (e) {
+                        Navigator.pop(context);
+                        String errorMessage;
+                        if (e.code == 'wrong-password') {
+                          errorMessage = 'Mật khẩu hiện tại không đúng';
+                        } else if (e.code == 'too-many-requests') {
+                          errorMessage =
+                              'Quá nhiều yêu cầu, vui lòng thử lại sau';
+                        } else if (e.code == 'user-mismatch') {
+                          errorMessage = 'Thông tin xác thực không khớp';
+                        } else {
+                          errorMessage = 'Lỗi xác thực';
+                          print(
+                            'FirebaseAuthException: code=${e.code}, message=${e.message}',
+                          );
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              errorMessage,
+                              style: GoogleFonts.beVietnamPro(),
+                            ),
+                          ),
+                        );
+                        return;
+                      } catch (e) {
+                        Navigator.pop(context);
+                        print('Unexpected error during reauthentication: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Lỗi xác thực không xác định',
+                              style: GoogleFonts.beVietnamPro(),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                    }
+
+                    await _currentUser?.reload();
+                    _loadUserInfo();
+
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Cập nhật hồ sơ thành công!',
+                          style: GoogleFonts.beVietnamPro(),
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    Navigator.pop(context);
+                    print('Lỗi khi cập nhật hồ sơ: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Lỗi khi cập nhật hồ sơ: $e',
+                          style: GoogleFonts.beVietnamPro(),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Text('Lưu', style: GoogleFonts.beVietnamPro()),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final textColor =
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black87;
+        Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black87;
 
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
@@ -591,10 +594,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             appBar: AppBar(
-              title: Text(
-                'CÀI ĐẶT',
-                style: GoogleFonts.beVietnamPro(),
-              ),
+              title: Text('CÀI ĐẶT', style: GoogleFonts.beVietnamPro()),
               backgroundColor: highlightColor,
             ),
             body: const Center(child: CircularProgressIndicator()),
@@ -603,10 +603,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (snapshot.hasError) {
           return Scaffold(
             appBar: AppBar(
-              title: Text(
-                'CÀI ĐẶT',
-                style: GoogleFonts.beVietnamPro(),
-              ),
+              title: Text('CÀI ĐẶT', style: GoogleFonts.beVietnamPro()),
               backgroundColor: highlightColor,
             ),
             body: Center(
@@ -632,10 +629,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       backgroundColor: highlightColor,
                       foregroundColor: Colors.black87,
                     ),
-                    child: Text(
-                      'Thử lại',
-                      style: GoogleFonts.beVietnamPro(),
-                    ),
+                    child: Text('Thử lại', style: GoogleFonts.beVietnamPro()),
                   ),
                 ],
               ),
@@ -645,10 +639,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(
-              'CÀI ĐẶT',
-              style: GoogleFonts.beVietnamPro(),
-            ),
+            title: Text('CÀI ĐẶT', style: GoogleFonts.beVietnamPro()),
             backgroundColor: highlightColor,
             actions: [
               Builder(
@@ -689,9 +680,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           height: 60,
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white54
-                                  : Colors.black,
+                              color:
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white54
+                                      : Colors.black,
                               width: 1,
                             ),
                             borderRadius: BorderRadius.circular(12),
@@ -710,9 +703,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Tên người dùng: ${_currentUser?.displayName ?? "Guest"}',
                                 style: GoogleFonts.beVietnamPro(
                                   fontSize: 16,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -722,9 +717,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Email: ${_currentUser?.email ?? "N/A"}',
                                 style: GoogleFonts.beVietnamPro(
                                   fontSize: 16,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -736,6 +733,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                if (_isBannerAdReady)
+                  Container(
+                    height: _bannerAd.size.height.toDouble(),
+                    width: _bannerAd.size.width.toDouble(),
+                    child: AdWidget(ad: _bannerAd),
+                  ),
                 const SizedBox(height: 20),
                 SettingsCard(
                   audioQuality: _audioQuality,
@@ -760,14 +764,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          floatingActionButton: _isLoggedIn
-              ? FloatingActionButton(
-            onPressed: _logout,
-            backgroundColor: highlightColor,
-            foregroundColor: Colors.black87,
-            child: const Icon(Icons.logout),
-          )
-              : null,
+          floatingActionButton:
+              _isLoggedIn
+                  ? FloatingActionButton(
+                    onPressed: _logout,
+                    backgroundColor: highlightColor,
+                    foregroundColor: Colors.black87,
+                    child: const Icon(Icons.logout),
+                  )
+                  : null,
         );
       },
     );

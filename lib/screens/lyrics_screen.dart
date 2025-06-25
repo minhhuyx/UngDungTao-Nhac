@@ -107,7 +107,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
 
   final highlightColor = const Color(0xFFADD8E6);
 
-  final List<String> _models = ['Phi-4', 'DeepSeek-V3-0324', 'gpt-4o'];
+  final List<String> _models = ['Phi-4', 'DeepSeek-V3-0324', 'gpt-4o','Grok-3'];
   String _selectedModel = 'gpt-4o';
   String _selectedModel2 = 'gpt-4o';
 
@@ -124,8 +124,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
       _currentTheme = prefs.getString('lyrics_currentTheme') ?? '';
       _currentTags = prefs.getString('lyrics_currentTags') ?? '';
       _selectedLanguage = prefs.getString('lyrics_selectedLanguage') ?? 'en';
-      _selectedModel = prefs.getString('lyrics_selectedModel') ?? 'gpt-4o';
-      _selectedModel2 = prefs.getString('lyrics_selectedModel2') ?? 'gpt-4o';
+      _selectedModel = prefs.getString('lyrics_selectedModel') ?? 'gpt-4o'; // Mặc định cho tạo lời nhạc
+      _selectedModel2 = prefs.getString('lyrics_selectedModel2') ?? 'Phi-4'; // Mặc định cho định dạng thời gian
       _isSaved = prefs.getBool('lyrics_isSaved') ?? false;
     });
   }
@@ -295,7 +295,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
             {
               'role': 'user',
               'content':
-              'Add timestamps to the lyrics in ${_selectedLanguage} format, based on tags "$tags":\n\n$rawLyrics',
+                  'Add timestamps to the lyrics in ${_selectedLanguage} format, based on tags "$tags":\n\n$rawLyrics',
             },
           ],
           'max_tokens': 2000,
@@ -370,7 +370,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DIFFRHYTHM AI'),
+        title: Text('SÁNG TÁC BÀI HÁT', style: GoogleFonts.beVietnamPro()),
         backgroundColor: highlightColor,
         actions: [
           Builder(
@@ -675,19 +675,36 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: DropdownButton<String>(
+                     DropdownButtonFormField<String>(
                         value: _selectedModel,
                         isExpanded: true,
-                        hint: const Text('Chọn mô hình AI / Select AI model'),
-                        items:
-                            _models.map((String model) {
-                              return DropdownMenuItem<String>(
-                                value: model,
-                                child: Text(model),
-                              );
-                            }).toList(),
+                        decoration: InputDecoration(
+                          labelText: 'Chọn mô hình AI',
+                          labelStyle: TextStyle(
+                            color: isDarkTheme ? highlightColor : Colors.grey[400],
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: highlightColor,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: highlightColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: _models.map((String model) {
+                          return DropdownMenuItem<String>(
+                            value: model,
+                            child: Text(model),
+                          );
+                        }).toList(),
                         onChanged: (String? newValue) {
                           if (newValue != null) {
                             setState(() {
@@ -697,7 +714,6 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           }
                         },
                       ),
-                    ),
                     const SizedBox(height: 15),
                     SizedBox(
                       width: double.infinity,
@@ -858,27 +874,44 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: DropdownButton<String>(
-                        value: _selectedModel2,
-                        isExpanded: true,
-                        items:
-                            _models.map((String model) {
-                              return DropdownMenuItem<String>(
-                                value: model,
-                                child: Text(model),
-                              );
-                            }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _selectedModel2 = newValue;
-                              _saveState();
-                            });
-                          }
-                        },
+                    DropdownButtonFormField<String>(
+                      value: _selectedModel2, // Sửa từ _selectedModel thành _selectedModel2
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Mô hình AI cho định dạng thời gian', // Nhãn rõ ràng hơn
+                        labelStyle: TextStyle(
+                          color: isDarkTheme ? highlightColor : Colors.grey[400],
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: highlightColor,
+                            width: 1.0,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: highlightColor,
+                            width: 2.0,
+                          ),
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
+                      items: _models.map((String model) {
+                        return DropdownMenuItem<String>(
+                          value: model,
+                          child: Text(model),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedModel2 = newValue; // Sửa thành _selectedModel2
+                            _saveState();
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 15),
                     SizedBox(

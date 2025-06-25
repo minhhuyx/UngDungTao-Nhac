@@ -11,6 +11,7 @@ import 'screens/lyrics_screen.dart' as lyrics;
 import 'screens/beat_screen.dart' as beat;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // Định nghĩa MyAppState để quản lý trạng thái điều hướng
 class MyAppState extends ChangeNotifier {
@@ -31,6 +32,13 @@ class MyAppState extends ChangeNotifier {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+
+  MobileAds.instance.initialize();
+
+  // Đây là phần quan trọng!
+  MobileAds.instance.updateRequestConfiguration(
+    RequestConfiguration(testDeviceIds: ['EMULATOR']),
+  );
   try {
     await Firebase.initializeApp();
     FirebaseDatabase.instance.setPersistenceEnabled(true);
@@ -161,8 +169,8 @@ class _MyAppState extends State<MyApp> {
                     print('Building Scaffold with selectedIndex: ${appState.selectedIndex}');
                     final List<Widget> screens = [
                       const home.HomeScreen(),
-                      const lyrics.LyricsScreen(),
                       const beat.BeatScreen(),
+                      const lyrics.LyricsScreen(),
                       history.HistoryScreen(
                         onNavigate: (index) {
                           print('HistoryScreen onNavigate called with index: $index');
@@ -191,9 +199,9 @@ class _MyAppState extends State<MyApp> {
                           selectedItemColor: isDarkTheme ? const Color(0xFFADD8E6) : const Color(0xFFADD8E6),
                           unselectedItemColor: isDarkTheme ? Colors.white70 : Colors.black45,
                           items: const [
-                            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang Chủ'),
-                            BottomNavigationBarItem(icon: Icon(Icons.music_note), label: 'Tạo lời nhạc'),
-                            BottomNavigationBarItem(icon: Icon(Icons.piano), label: 'Beat'),
+                            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'DIFFRHYTHM'),
+                            BottomNavigationBarItem(icon: Icon(Icons.piano), label: 'ACE-STEP'),
+                            BottomNavigationBarItem(icon: Icon(Icons.music_note), label: 'Sáng tác bài hát'),
                             BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Lịch Sử'),
                             BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Cài đặt'),
 

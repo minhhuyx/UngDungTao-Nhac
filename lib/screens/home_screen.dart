@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
-import 'package:collection/collection.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -337,7 +336,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_textPromptController.text.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng xóa nội dung text prompt trước khi chọn file âm thanh.'),
+          content: Text(
+            'Vui lòng xóa nội dung text prompt trước khi chọn file âm thanh.',
+          ),
         ),
       );
       return;
@@ -372,7 +373,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!await _isValidAudioDuration(file.path)) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tệp âm thanh không hợp lệ hoặc quá ngắn (<10 giây).'),
+              content: Text(
+                'Tệp âm thanh không hợp lệ hoặc quá ngắn (<10 giây).',
+              ),
             ),
           );
           return;
@@ -384,9 +387,9 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi chọn file âm thanh: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi chọn file âm thanh: $e')));
     }
   }
 
@@ -433,14 +436,18 @@ class _HomeScreenState extends State<HomeScreen> {
           final fileSize = await file.length();
           if (fileSize > 10 * 1024 * 1024) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('File ghi âm quá lớn (tối đa 10MB).')),
+              const SnackBar(
+                content: Text('File ghi âm quá lớn (tối đa 10MB).'),
+              ),
             );
             await file.delete();
             return;
           }
           if (!await _isValidAudioDuration(path)) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Tệp âm thanh phải dài ít nhất 10 giây')),
+              const SnackBar(
+                content: Text('Tệp âm thanh phải dài ít nhất 10 giây'),
+              ),
             );
             await file.delete();
             return;
@@ -477,14 +484,15 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi ghi âm: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi ghi âm: $e')));
     }
   }
 
   Future<void> _togglePlayPause() async {
-    if (_selectedAudioPath == null || !await File(_selectedAudioPath!).exists()) {
+    if (_selectedAudioPath == null ||
+        !await File(_selectedAudioPath!).exists()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Tệp âm thanh không tồn tại hoặc không hợp lệ'),
@@ -509,9 +517,9 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi phát âm thanh: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi phát âm thanh: $e')));
       await _resetAudioPlayer();
     }
   }
@@ -539,19 +547,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _cleanOldFiles() async {
     final directory = await getTemporaryDirectory();
-    final files = directory
-        .listSync()
-        .where((file) => file.path.endsWith('.mp3'))
-        .map((file) => File(file.path))
-        .toList();
+    final files =
+        directory
+            .listSync()
+            .where((file) => file.path.endsWith('.mp3'))
+            .map((file) => File(file.path))
+            .toList();
     if (files.length >= AppConstants.maxSongs) {
-      files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
-      for (var file in files.sublist(0, files.length - AppConstants.maxSongs + 1)) {
+      files.sort(
+        (a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()),
+      );
+      for (var file in files.sublist(
+        0,
+        files.length - AppConstants.maxSongs + 1,
+      )) {
         await file.delete();
       }
     }
   }
-
 
   Future<void> _generateMusic() async {
     if (_lyricsController.text.trim().isEmpty) {
@@ -563,27 +576,36 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_isValidLyricsFormat(_lyricsController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Lời bài hát không đúng định dạng [mm:ss.xx] Lyric content'),
+          content: Text(
+            'Lời bài hát không đúng định dạng [mm:ss.xx] Lyric content',
+          ),
         ),
       );
       return;
     }
     if (_selectedPrompt == PromptType.none) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn Text Prompt hoặc Audio Prompt!')),
+        const SnackBar(
+          content: Text('Vui lòng chọn Text Prompt hoặc Audio Prompt!'),
+        ),
       );
       return;
     }
     if (_selectedPrompt == PromptType.audio &&
-        (_selectedAudioPath == null || !File(_selectedAudioPath!).existsSync())) {
+        (_selectedAudioPath == null ||
+            !File(_selectedAudioPath!).existsSync())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn hoặc ghi âm một file âm thanh!')),
+        const SnackBar(
+          content: Text('Vui lòng chọn hoặc ghi âm một file âm thanh!'),
+        ),
       );
       return;
     }
     if (!await _isConnected()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.')),
+        const SnackBar(
+          content: Text('Không có kết nối mạng. Vui lòng kiểm tra lại.'),
+        ),
       );
       return;
     }
@@ -595,10 +617,10 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final String ngrokUrl = AppConstants.apiBaseUrl;
       final String generateUrl = '$ngrokUrl/generate_music';
-
       var request = http.MultipartRequest('POST', Uri.parse(generateUrl));
       request.fields['lyrics'] = _lyricsController.text.trim();
-      request.fields['prompt_type'] = _selectedPrompt == PromptType.text ? 'text' : 'audio';
+      request.fields['prompt_type'] =
+          _selectedPrompt == PromptType.text ? 'text' : 'audio';
       request.fields['audio_length'] = _selectedDuration.toString();
 
       if (_selectedPrompt == PromptType.text) {
@@ -643,9 +665,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _selectedPrompt = PromptType.none;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tạo nhạc thành công!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Tạo nhạc thành công!')));
       } else {
         final responseBody = await response.stream.bytesToString();
         String errorMessage = 'Lỗi từ server: ${response.statusCode}';
@@ -656,9 +678,9 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception(errorMessage);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi tạo nhạc: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tạo nhạc: $e')));
       setState(() {
         _generatedAudioPath = null;
       });
@@ -740,8 +762,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final userId = user.uid;
 
     try {
-      final databaseRef = FirebaseDatabase.instance.ref('lyrics_history/$userId');
-      final snapshot = await databaseRef.orderByChild('created_at').limitToLast(50).once();
+      final databaseRef = FirebaseDatabase.instance.ref(
+        'lyrics_history/$userId',
+      );
+      final snapshot =
+          await databaseRef.orderByChild('created_at').limitToLast(50).once();
       final data = snapshot.snapshot.value;
       final List<Map<String, dynamic>> loadedSongs = [];
       if (data != null && data is Map) {
@@ -753,14 +778,14 @@ class _HomeScreenState extends State<HomeScreen> {
               'theme_name': value['theme_name']?.toString() ?? 'Unknown Style',
               'file_url': value['file_url']?.toString() ?? '',
               'created_at':
-              value['created_at'] is int
-                  ? value['created_at']
-                  : DateTime.now().millisecondsSinceEpoch,
+                  value['created_at'] is int
+                      ? value['created_at']
+                      : DateTime.now().millisecondsSinceEpoch,
             });
           }
         });
         loadedSongs.sort(
-              (a, b) => (b['created_at'] as int).compareTo(a['created_at'] as int),
+          (a, b) => (b['created_at'] as int).compareTo(a['created_at'] as int),
         );
       }
 
@@ -768,9 +793,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _historySongs = loadedSongs;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi truy cập lịch sử: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi truy cập lịch sử: $e')));
     }
   }
 
@@ -1015,16 +1040,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               '285s',
                               style: GoogleFonts.beVietnamPro(
                                 fontSize: 20,
-                                color: cardTextColor,
+                                color: Colors.grey, // Hiển thị như bị disable
                               ),
                             ),
                             value: 285,
                             groupValue: _selectedDuration,
-                            activeColor: highlightColor,
+                            activeColor: Colors.grey,
                             onChanged: (int? value) {
-                              setState(() {
-                                _selectedDuration = value!;
-                              });
+                              // Không cập nhật state, chỉ hiện thông báo
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Tính năng đang phát triển'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
                             },
                           ),
                         ),

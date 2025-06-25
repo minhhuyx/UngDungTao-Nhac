@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -12,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'musicplay_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 Widget buildMusicCard(
   String? generatedAudioPath,
@@ -410,7 +410,7 @@ class _BeatScreenState extends State<BeatScreen> {
 
   final LyricsHistoryManager _historyManager = LyricsHistoryManager();
 
-  final List<String> _models = ['Phi-4', 'DeepSeek-V3-0324', 'gpt-4o'];
+  final List<String> _models = ['Phi-4', 'DeepSeek-V3-0324', 'gpt-4o' ,'Grok-3'];
   String _selectedModel = 'gpt-4o';
 
   final Map<String, String> _genreDescriptions = {
@@ -437,12 +437,28 @@ class _BeatScreenState extends State<BeatScreen> {
         'r&b, synth, bass, drums, 85 bpm, sultry, groovy, romantic, female vocals, silky vocals',
   };
 
+  final Map<String, String> _languageOptions = {
+    'en': 'Tiếng Anh',
+    'es': 'Tiếng Tây Ban Nha',
+    'fr': 'Tiếng Pháp',
+    'de': 'Tiếng Đức',
+    'it': 'Tiếng Ý',
+    'ja': 'Tiếng Nhật',
+    'ko': 'Tiếng Hàn',
+    'zh': 'Tiếng Trung',
+  };
+
   final Map<String, String> _lyricsCache = {};
+
+  InterstitialAd? _interstitialAd;
+
+  static const int _adCooldownMinutes = 5; // Thời gian chờ giữa các quảng cáo (phút)
 
   @override
   void initState() {
     super.initState();
     _loadSavedState();
+    _loadInterstitialAd();
   }
 
   Future<void> _loadSavedState() async {
@@ -452,16 +468,15 @@ class _BeatScreenState extends State<BeatScreen> {
         _generatedLyrics = prefs.getString('beat_generatedLyrics') ?? '';
         _currentTheme = prefs.getString('beat_currentTheme') ?? '';
         _selectedLanguage = prefs.getString('beat_selectedLanguage') ?? 'en';
-        _selectedModel = prefs.getString('beat_selectedModel') ?? 'gpt-4o';
+        _selectedModel = prefs.getString('beat_selectedModel') ?? _models[0]; // Chọn mô hình đầu tiên nếu không có
         _isSaved = prefs.getBool('beat_isSaved') ?? false;
         _selectedGenre = prefs.getString('beat_selectedGenre') ?? 'Custom';
         _audioPath = prefs.getString('generated_song_path');
         _descriptionController.text = _genreDescriptions[_selectedGenre] ?? '';
-        // Kiểm tra xem file âm thanh có tồn tại không
         if (_audioPath != null) {
           final file = File(_audioPath!);
           if (!file.existsSync()) {
-            _audioPath = null; // Xóa _audioPath nếu file không tồn tại
+            _audioPath = null;
             prefs.remove('generated_song_path');
           }
         }
@@ -513,14 +528,13 @@ class _BeatScreenState extends State<BeatScreen> {
     final theme = _themeController.text.trim();
 
     if (theme.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Vui lòng nhập chủ đề')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Vui lòng nhập chủ đề')));
       return;
     }
 
     setState(() {
-      _isLoadingLyrics = true; // Bật loading cho tạo lời nhạc
+      _isLoadingLyrics = true;
       _generatedLyrics = '';
       _isSaved = false;
     });
@@ -531,7 +545,7 @@ class _BeatScreenState extends State<BeatScreen> {
         _generatedLyrics = _lyricsCache[cacheKey]!;
         _currentTheme = theme;
         _themeController.clear();
-        _isLoadingLyrics = false; // Tắt loading
+        _isLoadingLyrics = false;
       });
       await _saveState();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -549,6 +563,18 @@ class _BeatScreenState extends State<BeatScreen> {
         throw Exception('Thiếu URL API hoặc khóa API');
       }
 
+      // Ánh xạ mã ngôn ngữ sang tên đầy đủ cho API
+      final Map<String, String> languageNameMap = {
+        'en': 'English',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'it': 'Italian',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'zh': 'Chinese',
+      };
+
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
@@ -560,9 +586,8 @@ class _BeatScreenState extends State<BeatScreen> {
           'messages': [
             {
               'role': 'user',
-              'content':
-                  'Write a high-quality song based on the theme "$theme".\n'
-                  'Language: ${_selectedLanguage == 'en' ? 'English' : 'Chinese'}.\n'
+              'content': 'Write a high-quality song based on the theme "$theme".\n'
+                  'Language: ${languageNameMap[_selectedLanguage] ?? 'English'}.\n'
                   'Structure:\n'
                   '- At least 3 verses ([verse]), 1–2 choruses ([chorus]), and 1 bridge ([bridge]).\n'
                   '- Format the lyrics with the following structure:\n'
@@ -595,7 +620,7 @@ class _BeatScreenState extends State<BeatScreen> {
           _generatedLyrics = generatedLyrics;
           _currentTheme = theme;
           _themeController.clear();
-          _isLoadingLyrics = false; // Tắt loading
+          _isLoadingLyrics = false;
           _lyricsCache[cacheKey] = generatedLyrics;
         });
         await _saveState();
@@ -610,12 +635,11 @@ class _BeatScreenState extends State<BeatScreen> {
       }
     } catch (e) {
       setState(() {
-        _isLoadingLyrics = false; // Tắt loading khi lỗi
+        _isLoadingLyrics = false;
         _generatedLyrics = '';
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
   }
 
@@ -630,7 +654,6 @@ class _BeatScreenState extends State<BeatScreen> {
       return;
     }
 
-    // Xóa bài hát cục bộ hiện tại nếu tồn tại
     if (_audioPath != null) {
       try {
         final file = File(_audioPath!);
@@ -647,7 +670,7 @@ class _BeatScreenState extends State<BeatScreen> {
     }
 
     setState(() {
-      _isLoadingSong = true; // Bật loading cho tạo bài hát
+      _isLoadingSong = true;
     });
 
     try {
@@ -672,18 +695,19 @@ class _BeatScreenState extends State<BeatScreen> {
             '${directory.path}/song_${counter.toString().padLeft(2, '0')}.mp3';
         final file = File(filePath);
 
-        await file.writeAsBytes(response.bodyBytes); // Sử dụng writeAsBytes
+        await file.writeAsBytes(response.bodyBytes);
         await prefs.setInt('song_counter', counter);
         await prefs.setString('generated_song_path', filePath);
 
         setState(() {
           _audioPath = filePath;
-          _isLoadingSong = false; // Tắt loading
+          _isLoadingSong = false;
         });
         await _saveState();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Bài hát đã được tạo!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bài hát đã được tạo!')));
+
+        // Hiển thị quảng cáo sau khi tạo bài hát thành công
+        await _showInterstitialAd();
       } else {
         final errorData = jsonDecode(utf8.decode(response.bodyBytes));
         throw Exception(
@@ -692,11 +716,9 @@ class _BeatScreenState extends State<BeatScreen> {
       }
     } catch (e) {
       setState(() {
-        _isLoadingSong = false; // Tắt loading khi lỗi
+        _isLoadingSong = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
   }
 
@@ -771,6 +793,59 @@ class _BeatScreenState extends State<BeatScreen> {
     }
   }
 
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // Test ID
+      request: AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _interstitialAd = ad;
+          _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              print('Ad dismissed.');
+              _interstitialAd = null;
+              _loadInterstitialAd();
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              print('Ad failed to show: $error');
+              _interstitialAd = null;
+              _loadInterstitialAd();
+            },
+          );
+        },
+        onAdFailedToLoad: (error) {
+          print('Interstitial failed to load: $error');
+          _interstitialAd = null;
+        },
+      ),
+    );
+  }
+
+  Future<bool> _canShowAd() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastAdTime = prefs.getInt('last_ad_time') ?? 0;
+    final currentTime = DateTime.now().millisecondsSinceEpoch;
+    final timeDiff = (currentTime - lastAdTime) / (1000 * 60); // Phút
+    return timeDiff >= _adCooldownMinutes;
+  }
+
+  Future<void> _updateLastAdTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('last_ad_time', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  Future<void> _showInterstitialAd() async {
+    if (_interstitialAd != null && await _canShowAd()) {
+      _interstitialAd!.show();
+      await _updateLastAdTime();
+      _interstitialAd = null;
+      _loadInterstitialAd();
+    } else {
+      print('Interstitial not ready or in cooldown.');
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
@@ -778,15 +853,20 @@ class _BeatScreenState extends State<BeatScreen> {
     final textColor = isDarkTheme ? Colors.white : Colors.black87;
     final selectedValue = _selectedGenre;
 
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ACE-STEP AI'),
+        title: Text(
+          'ACE-STEP AI',
+          style: GoogleFonts.beVietnamPro(),
+        ),
         backgroundColor: highlightColor,
         actions: [
           Builder(
             builder: (context) {
               final double appBarHeight = AppBar().preferredSize.height;
-              final double imageHeight = appBarHeight * 0.8;
+              final double imageHeight = appBarHeight * 10.0;
+
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: Image.asset(
@@ -878,94 +958,45 @@ class _BeatScreenState extends State<BeatScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Transform.scale(
-                                  scale: 1.1,
-                                  child: Radio<String>(
-                                    value: 'en',
-                                    groupValue: _selectedLanguage,
-                                    activeColor: highlightColor,
-                                    fillColor:
-                                        MaterialStateProperty.resolveWith<
-                                          Color
-                                        >(
-                                          (states) =>
-                                              states.contains(
-                                                    MaterialState.selected,
-                                                  )
-                                                  ? highlightColor
-                                                  : isDarkTheme
-                                                  ? Colors.white70
-                                                  : Colors.black54,
-                                        ),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedLanguage = value!;
-                                        _saveState();
-                                      });
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Tiếng Anh',
-                                  style: GoogleFonts.beVietnamPro(
-                                    fontSize: 15,
-                                    color: textColor,
-                                  ),
-                                ),
-                              ],
+                      DropdownButtonFormField<String>(
+                        value: _selectedLanguage,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Chọn ngôn ngữ',
+                          labelStyle: TextStyle(
+                            color:
+                            isDarkTheme ? highlightColor : Colors.grey[400],
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: highlightColor,
+                              width: 1.0,
                             ),
                           ),
-                          Expanded(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Transform.scale(
-                                  scale: 1.1,
-                                  child: Radio<String>(
-                                    value: 'cn',
-                                    groupValue: _selectedLanguage,
-                                    activeColor: highlightColor,
-                                    fillColor:
-                                        MaterialStateProperty.resolveWith<
-                                          Color
-                                        >(
-                                          (states) =>
-                                              states.contains(
-                                                    MaterialState.selected,
-                                                  )
-                                                  ? highlightColor
-                                                  : isDarkTheme
-                                                  ? Colors.white70
-                                                  : Colors.black54,
-                                        ),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedLanguage = value!;
-                                        _saveState();
-                                      });
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Tiếng Trung',
-                                  style: GoogleFonts.beVietnamPro(
-                                    fontSize: 15,
-                                    color: textColor,
-                                  ),
-                                ),
-                              ],
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: highlightColor,
+                              width: 2.0,
                             ),
                           ),
-                        ],
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: _languageOptions.entries.map((entry) {
+                          return DropdownMenuItem<String>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _selectedLanguage = newValue;
+                              _saveState();
+                            });
+                          }
+                        },
                       ),
                       const SizedBox(height: 15),
                       Text(
@@ -977,17 +1008,36 @@ class _BeatScreenState extends State<BeatScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      DropdownButton<String>(
+                      DropdownButtonFormField<String>(
                         value: _selectedModel,
                         isExpanded: true,
-                        hint: const Text('Chọn mô hình AI'),
-                        items:
-                            _models.map((String model) {
-                              return DropdownMenuItem<String>(
-                                value: model,
-                                child: Text(model),
-                              );
-                            }).toList(),
+                        decoration: InputDecoration(
+                          labelText: 'Chọn mô hình AI',
+                          labelStyle: TextStyle(
+                            color: isDarkTheme ? highlightColor : Colors.grey[400],
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: highlightColor,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: highlightColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: _models.map((String model) {
+                          return DropdownMenuItem<String>(
+                            value: model,
+                            child: Text(model),
+                          );
+                        }).toList(),
                         onChanged: (String? newValue) {
                           if (newValue != null) {
                             setState(() {
@@ -1286,6 +1336,7 @@ class _BeatScreenState extends State<BeatScreen> {
     _themeController.dispose();
     _descriptionController.dispose();
     _songLyricsController.dispose();
+    _interstitialAd?.dispose();
     super.dispose();
   }
 }

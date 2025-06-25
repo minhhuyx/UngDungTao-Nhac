@@ -500,10 +500,28 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final highlightColor = const Color(0xFFADD8E6);
     return Scaffold(
       appBar: AppBar(
-        title: Text('DIFFRHYTHM AI'),
-        backgroundColor: const Color(0xFFFFC0CB),
+        title: const Text('MUSIC AI'),
+        backgroundColor: highlightColor,
+        actions: [
+          Builder(
+            builder: (context) {
+              final double appBarHeight = AppBar().preferredSize.height;
+              final double imageHeight = appBarHeight * 10.0;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Image.asset(
+                  'assets/logo.png',
+                  height: imageHeight,
+                  fit: BoxFit.contain,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -525,7 +543,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFFFC0CB), width: 1.5),
+                  borderSide:  BorderSide(color: highlightColor, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -545,7 +563,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFFFC0CB), width: 1.5),
+                  borderSide:  BorderSide(color: highlightColor, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -582,7 +600,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 onPressed: _submit,
                 style: ElevatedButton.styleFrom(
                   side: const BorderSide(color: Colors.black87, width: 1.0),
-                  backgroundColor: const Color(0xFFFFC0CB),
+                  backgroundColor: highlightColor,
                   foregroundColor: Colors.black87,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
