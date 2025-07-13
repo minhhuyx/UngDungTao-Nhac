@@ -15,7 +15,6 @@ import 'musicplay_screen.dart'; // Import MusicPlayScreen
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
 
-
 class LyricsEntry {
   final String key;
   final String generatedLyrics;
@@ -179,7 +178,6 @@ class _HistoryScreenState extends State<HistoryScreen>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-
   @override
   void initState() {
     super.initState();
@@ -327,12 +325,16 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   Future<void> _downloadFile(String url, String fileName) async {
     try {
-      if (url.isEmpty) { // Kiểm tra url thay vì entry.fileUrl
+      if (url.isEmpty) {
+        // Kiểm tra url thay vì entry.fileUrl
         _showSnackBar('Không có file để tải xuống');
         return;
       }
 
-      final sanitizedFileName = fileName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+      final sanitizedFileName = fileName.replaceAll(
+        RegExp(r'[<>:"/\\|?*]'),
+        '_',
+      );
       Uint8List? fileBytes;
 
       // Tải dữ liệu byte từ URL
@@ -366,18 +368,13 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
   }
 
-
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _deleteEntry(
-    String category,
-    String key, {
-    String? fileUrl,
-  }) async {
+  Future<void> _deleteLyricsEntry(String key) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -388,30 +385,41 @@ class _HistoryScreenState extends State<HistoryScreen>
       }
 
       final userId = user.uid;
-      String? fileName;
-      if (fileUrl != null) {
-        fileName = fileUrl.split('%2F').last.split('?').first;
-      }
-
-      // Xóa dữ liệu từ Firebase Database nếu category không phải là file nhạc từ storage
-      if (category != 'my_songs' || fileUrl == null) {
-        await _databaseRef.child('lyrics_history/$userId/$key').remove();
-      }
-
-      // Xóa file từ Firebase Storage nếu có
-      if (fileName != null) {
-        final storageRef = _storage.ref('music_history/$userId/$fileName');
-        await storageRef.delete();
-      }
-
-      // Hiển thị thông báo xóa thành công
+      await _databaseRef.child('lyrics_history/$userId/$key').remove();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã xóa mục')));
-
-      // Tải lại dữ liệu để cập nhật danh sách
       if (mounted) {
         _setupStreams();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa mục: $e')));
+    }
+  }
+
+  Future<void> _deleteSongEntry(String key, String? fileUrl) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Vui lòng đăng nhập lại')));
+        return;
+      }
+
+      final userId = user.uid;
+      if (fileUrl != null) {
+        final fileName = fileUrl.split('%2F').last.split('?').first;
+        final storageRef = _storage.ref('music_history/$userId/$fileName');
+        await storageRef.delete();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã xóa mục')));
+        if (mounted) {
+          _setupStreams();
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -775,13 +783,20 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       IconButton(
                                         icon: Icon(
                                           Icons.download,
-                                          color: entry.fileUrl == null
-                                              ? Colors.grey
-                                              : (isDarkTheme ? Colors.blue[300] : Colors.blue),
+                                          color:
+                                              entry.fileUrl == null
+                                                  ? Colors.grey
+                                                  : (isDarkTheme
+                                                      ? Colors.blue[300]
+                                                      : Colors.blue),
                                         ),
-                                        onPressed: entry.fileUrl == null
-                                            ? null
-                                            : () => _downloadFile(entry.fileUrl!, entry.key),
+                                        onPressed:
+                                            entry.fileUrl == null
+                                                ? null
+                                                : () => _downloadFile(
+                                                  entry.fileUrl!,
+                                                  entry.key,
+                                                ),
                                         tooltip: 'Download',
                                       ),
                                       IconButton(
@@ -793,10 +808,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                                                   : Colors.red,
                                         ),
                                         onPressed:
-                                            () => _deleteEntry(
-                                              'favorites',
+                                            () => _deleteSongEntry(
                                               entry.key,
+                                              entry.fileUrl,
                                             ),
+                                        tooltip: 'Delete',
                                       ),
                                     ],
                                   ),
@@ -960,10 +976,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                                               : Colors.red,
                                     ),
                                     onPressed:
-                                        () => _deleteEntry(
-                                          'favorites',
-                                          entry.key,
-                                        ),
+                                        () => _deleteLyricsEntry(entry.key),
+                                    tooltip: 'Delete',
                                   ),
                                 ),
                               ),

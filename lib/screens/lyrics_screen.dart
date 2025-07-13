@@ -422,11 +422,15 @@ class _LyricsScreenState extends State<LyricsScreen> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(15.0),
-                    child: Text(
-                      'Hai chế độ tạo lời bài hát:\n1. Tạo từ chủ đề và phong cách.\n2. Cập nhật định dạng cho lời nhạc.',
-                      style: GoogleFonts.beVietnamPro(
-                        fontSize: 15,
-                        color: Colors.black,
+                    child: Container(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Hai chế độ tạo lời bài hát:\n1. Tạo từ chủ đề và phong cách.\n2. Cập nhật định dạng cho lời nhạc.',
+                        style: GoogleFonts.beVietnamPro(
+                          fontSize: 15,
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.left,
                       ),
                     ),
                   ),
@@ -481,7 +485,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           color: textColor,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Enter song theme,e.g: Love and Heartbreak',
+                          hintText: 'Nhập chủ đề,vd: Love and Heartbreak',
                           hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
@@ -538,7 +542,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                         ),
                         decoration: InputDecoration(
                           hintText:
-                              'Enter song tags,eg: pop confidence healing',
+                              'Nhập phong cách,vd: pop confidence healing',
                           hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
@@ -777,7 +781,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           color: textColor,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Enter song tags,eg: ballad piano slow',
+                          hintText: 'Nhập phong cách,eg: ballad piano slow',
                           hintStyle: GoogleFonts.beVietnamPro(
                             fontSize: 18,
                             color: isDarkTheme ? Colors.grey : Colors.grey,
@@ -835,7 +839,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                         ),
                         decoration: InputDecoration(
                           hintText:
-                              'Enter plain lyrics,eg:\n'
+                              'Nhập lời bài hát gốc,vd:\n'
                               'Yesterday\n'
                               'All my troubles',
                           hintStyle: GoogleFonts.beVietnamPro(

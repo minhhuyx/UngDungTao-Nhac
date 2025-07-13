@@ -922,9 +922,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '1. Lyrics Format Requirements\n'
-                          'Each line must follow: [mm:ss.xx] Lyric content\n'
-                          'Example of valid format:',
+                          '1. Yêu cầu về định dạng lời bài hát\n'
+                          'Mỗi dòng phải theo định dạng: [mm:ss.xx] Nội dung lời bài hát\n'
+                          'Ví dụ về định dạng hợp lệ::',
                           style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
@@ -960,27 +960,27 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Text(
-                          '2. Audio Prompt Requirements\n'
-                          'Reference audio should be ≥ 1 second, audio >10 seconds will be randomly clipped into 10 seconds\n'
-                          'For optimal results, the 10-second clips should be carefully selected\n'
-                          'Shorter clips may lead to incoherent generation',
+                          '2. Yêu cầu đối với đoạn âm thanh mẫu\n'
+                          'Âm thanh tham khảo phải có độ dài từ 1 giây trở lên, các đoạn dài hơn 10 giây sẽ được cắt ngẫu nhiên thành đoạn dài 10 giây.\n'
+                          'Để đạt kết quả tốt nhất, nên chọn kỹ các đoạn 10 giây.\n'
+                          'Các đoạn quá ngắn có thể dẫn đến kết quả tạo không mạch lạc.',
                           style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
                           ),
                         ),
                         Text(
-                          '3. Supported Languages\n'
-                          'Chinese and English\n'
-                          'More languages coming soon',
+                          '3. Ngôn ngữ hỗ trợ\n'
+                          'Tiếng Anh và Tiếng Trung\n'
+                          'Các ngôn ngữ khác đang được phát triển',
                           style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
                           ),
                         ),
                         Text(
-                          '4. Others\n'
-                          'If loading audio result is slow, you can select Output Format as mp3 in Advanced Settings.',
+                          '4. Khác\n'
+                          'Nếu việc tải kết quả âm thanh chậm, bạn có thể chọn Định dạng đầu ra là mp3 trong Cài đặt nâng cao.',
                           style: GoogleFonts.beVietnamPro(
                             fontSize: 15,
                             color: cardTextColor,
@@ -1253,7 +1253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.create),
                         labelText:
-                            'Enter the Text Prompt, eg: emotional piano pop',
+                            'Nhập mô tả, vd: emotional piano pop',
                         labelStyle: GoogleFonts.beVietnamPro(
                           fontSize: 16,
                           color: isDarkTheme ? Colors.black : Colors.black,
@@ -1293,50 +1293,47 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(4.0),
-              child:
-                  _isGenerating
-                      ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFFFFC0CB),
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Nhạc Đang Trong Quá Trình Xử Lý',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                      : ElevatedButton(
-                        onPressed: _isGenerating ? null : _generateMusic,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: highlightColor,
-                          foregroundColor: cardTextColor,
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(color: cardTextColor, width: 1.0),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          disabledBackgroundColor: highlightColor.withOpacity(
-                            0.5,
-                          ),
-                        ),
-                        child: Text(
-                          'Tạo Nhạc',
-                          style: GoogleFonts.beVietnamPro(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: cardTextColor,
-                          ),
-                        ),
+              child: _isGenerating
+                  ? Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFADD8E6),
                       ),
+                    ),
+                    SizedBox(width: 10),
+                    Text( // Removed Expanded
+                      'Đang tạo nhạc',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  : ElevatedButton(
+                onPressed: _isGenerating ? null : _generateMusic,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: highlightColor,
+                  foregroundColor: cardTextColor,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: cardTextColor, width: 1.0),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  disabledBackgroundColor: highlightColor.withOpacity(0.5),
+                ),
+                child: Text(
+                  'Tạo Nhạc',
+                  style: GoogleFonts.beVietnamPro(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: cardTextColor,
+                  ),
+                ),
+              ),
             ),
             if (_generatedAudioPath != null)
               buildMusicCard(
