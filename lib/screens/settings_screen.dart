@@ -147,7 +147,7 @@ class SettingsCard extends StatelessWidget {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeTrackColor: Colors.lightBlueAccent,
+        activeTrackColor: Color(0xFFADD8E6),
         thumbColor: MaterialStateProperty.all(iconColor),
         inactiveTrackColor: Colors.grey[300],
       ),
@@ -371,7 +371,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text('Đăng xuất', style: GoogleFonts.beVietnamPro()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, // màu nền của nút
+                  foregroundColor: Colors.white, // màu chữ
+                  shadowColor: Colors.redAccent, // màu bóng (nếu có)
+                  elevation: 4, // độ nổi của nút
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10), // bo góc
+                  ),
+                ),
+                child: Text(
+                  'Đăng xuất',
+                  style: GoogleFonts.beVietnamPro(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -425,9 +438,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 TextField(
                   controller: nameController,
                   decoration: InputDecoration(
-                    labelText: 'Tên hiển thị',
-                    border: const OutlineInputBorder(),
-                    labelStyle: GoogleFonts.beVietnamPro(),
+                    labelText: 'Tên người dùng',
+                    labelStyle: GoogleFonts.beVietnamPro(
+                      color: highlightColor, // 🔵 Màu cho label
+                      fontWeight: FontWeight.w600,
+                    ),
+                    border: OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: highlightColor, // Màu viền khi focus
+                        width: 3.0,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Colors.grey, // Màu viền khi chưa focus
+                        width: 1.0,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -435,8 +463,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   controller: currentPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Mật khẩu hiện tại',
-                    border: const OutlineInputBorder(),
-                    labelStyle: GoogleFonts.beVietnamPro(),
+                    labelStyle: GoogleFonts.beVietnamPro(
+                      color: highlightColor, // 🔵 Màu cho label
+                      fontWeight: FontWeight.w600,
+                    ),
+                    border: OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: highlightColor, // Màu viền khi focus
+                        width: 3.0,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Colors.grey, // Màu viền khi chưa focus
+                        width: 1.0,
+                      ),
+                    ),
                   ),
                   obscureText: true,
                 ),
@@ -444,9 +487,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 TextField(
                   controller: passwordController,
                   decoration: InputDecoration(
-                    labelText: 'Mật khẩu mới (để trống nếu không thay đổi)',
-                    border: const OutlineInputBorder(),
-                    labelStyle: GoogleFonts.beVietnamPro(),
+                    labelText: 'Mật khẩu mới (để trống nếu không cập nhật)',
+                    labelStyle: GoogleFonts.beVietnamPro(
+                      color: highlightColor, // 🔵 Màu cho label
+                      fontWeight: FontWeight.w600,
+                    ),
+                    border: OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: highlightColor, // Màu viền khi focus
+                        width: 3.0,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Colors.grey, // Màu viền khi chưa focus
+                        width: 1.0,
+                      ),
+                    ),
                   ),
                   obscureText: true,
                 ),
@@ -461,7 +519,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: () async {
                   if (passwordController.text.isNotEmpty &&
                       currentPasswordController.text.length < 6) {
-                    Navigator.pop(context);
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
@@ -480,6 +538,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       SnackBar(
                         content: Text(
                           'Mật khẩu mới phải có ít nhất 6 ký tự',
+                          style: GoogleFonts.beVietnamPro(),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (currentPasswordController.text.isNotEmpty &&
+                      passwordController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Vui lòng nhập khẩu mới',
                           style: GoogleFonts.beVietnamPro(),
                         ),
                       ),
@@ -572,6 +643,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   }
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: highlightColor, // màu nền của nút
+                  foregroundColor: Colors.black, // màu chữ
+                  shadowColor: highlightColor, // màu bóng (nếu có)
+                  elevation: 4, // độ nổi của nút
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10), // bo góc
+                  ),
+                ),
                 child: Text('Lưu', style: GoogleFonts.beVietnamPro()),
               ),
             ],

@@ -188,7 +188,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
 
     if (theme.isEmpty || tags.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter theme and tags')),
+        const SnackBar(content: Text('Vui lòng bổ sung chủ đề hoặc phong cách')),
       );
       return;
     }
@@ -265,10 +265,10 @@ class _LyricsScreenState extends State<LyricsScreen> {
     final tags = _tagsMethod2Controller.text.trim();
     final rawLyrics = _rawLyricsController.text.trim();
 
-    if (rawLyrics.isEmpty) {
+    if (rawLyrics.isEmpty || tags.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter raw lyrics')));
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng bổ sung lời bài hát hoặc mô tả')));
       return;
     }
 

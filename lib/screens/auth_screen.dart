@@ -58,6 +58,21 @@ class _AuthScreenState extends State<AuthScreen> {
           email: email,
           password: password,
         );
+        // Đăng xuất ngay sau khi đăng ký để không tự động đăng nhập
+        await _auth.signOut();
+        // Hiển thị thông báo đăng ký thành công
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đăng ký tài khoản thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Chuyển về chế độ đăng nhập
+        setState(() {
+          _isLoginMode = true;
+          _emailController.clear();
+          _passwordController.clear();
+        });
       }
       setState(() {
         _isLoading = false;
@@ -92,7 +107,8 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -185,65 +201,73 @@ class _AuthScreenState extends State<AuthScreen> {
     _resetEmailController.clear();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Quên mật khẩu'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Nhập email của bạn để nhận link đặt lại mật khẩu.'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _resetEmailController,
-              decoration: InputDecoration(
-                labelText: 'Email',
-                labelStyle: const TextStyle(color: Colors.black),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Quên mật khẩu'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Nhập email của bạn để nhận link đặt lại mật khẩu.'),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _resetEmailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    labelStyle: const TextStyle(color: Colors.black),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFFFC0CB),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2.0,
+                      ),
+                    ),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFFFC0CB), width: 1.5),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2.0),
-                ),
-              ),
-              keyboardType: TextInputType.emailAddress,
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
             ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Hủy'),
               ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Hủy'),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _resetPassword,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC0CB),
+                  foregroundColor: Colors.black87,
+                ),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Gửi'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: _isLoading ? null : _resetPassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC0CB),
-              foregroundColor: Colors.black87,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : const Text('Gửi'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -255,9 +279,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
     final phoneNumber = _phoneController.text.trim();
 
-    if (phoneNumber.isEmpty || !phoneNumber.startsWith('+') || phoneNumber.length < 10) {
+    if (phoneNumber.isEmpty ||
+        !phoneNumber.startsWith('+') ||
+        phoneNumber.length < 10) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập số điện thoại hợp lệ (bao gồm mã quốc gia, ví dụ: +84).';
+        _errorMessage =
+            'Vui lòng nhập số điện thoại hợp lệ (bao gồm mã quốc gia, ví dụ: +84).';
         _isLoading = false;
       });
       return;
@@ -343,65 +370,75 @@ class _AuthScreenState extends State<AuthScreen> {
     _phoneController.clear();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Đăng nhập bằng số điện thoại'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Nhập số điện thoại của bạn (bao gồm mã quốc gia, ví dụ: +84).'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _phoneController,
-              decoration: InputDecoration(
-                labelText: 'Số điện thoại',
-                labelStyle: const TextStyle(color: Colors.black),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Đăng nhập bằng số điện thoại'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Nhập số điện thoại của bạn (bao gồm mã quốc gia, ví dụ: +84).',
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFFFC0CB), width: 1.5),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _phoneController,
+                  decoration: InputDecoration(
+                    labelText: 'Số điện thoại',
+                    labelStyle: const TextStyle(color: Colors.black),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFFFC0CB),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2.0,
+                      ),
+                    ),
+                  ),
+                  keyboardType: TextInputType.phone,
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2.0),
-                ),
-              ),
-              keyboardType: TextInputType.phone,
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
             ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Hủy'),
               ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Hủy'),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _verifyPhoneNumber,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC0CB),
+                  foregroundColor: Colors.black87,
+                ),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Gửi mã'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: _isLoading ? null : _verifyPhoneNumber,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC0CB),
-              foregroundColor: Colors.black87,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : const Text('Gửi mã'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -409,65 +446,75 @@ class _AuthScreenState extends State<AuthScreen> {
     _smsCodeController.clear();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nhập mã xác minh'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Nhập mã 6 chữ số được gửi đến số điện thoại của bạn.'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _smsCodeController,
-              decoration: InputDecoration(
-                labelText: 'Mã xác minh',
-                labelStyle: const TextStyle(color: Colors.black),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Nhập mã xác minh'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Nhập mã 6 chữ số được gửi đến số điện thoại của bạn.',
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFFFC0CB), width: 1.5),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _smsCodeController,
+                  decoration: InputDecoration(
+                    labelText: 'Mã xác minh',
+                    labelStyle: const TextStyle(color: Colors.black),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFFFC0CB),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2.0,
+                      ),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2.0),
-                ),
-              ),
-              keyboardType: TextInputType.number,
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
             ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Hủy'),
               ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Hủy'),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _signInWithPhoneNumber,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC0CB),
+                  foregroundColor: Colors.black87,
+                ),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Xác minh'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: _isLoading ? null : _signInWithPhoneNumber,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC0CB),
-              foregroundColor: Colors.black87,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : const Text('Xác minh'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -528,7 +575,7 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-             Text(
+            Text(
               _isLoginMode ? 'Đăng nhập' : 'Đăng ký',
               style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
@@ -543,11 +590,14 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide:  BorderSide(color: highlightColor, width: 1.5),
+                  borderSide: BorderSide(color: highlightColor, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2.0),
+                  borderSide: const BorderSide(
+                    color: Colors.black87,
+                    width: 2.0,
+                  ),
                 ),
               ),
               keyboardType: TextInputType.emailAddress,
@@ -563,11 +613,14 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide:  BorderSide(color: highlightColor, width: 1.5),
+                  borderSide: BorderSide(color: highlightColor, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2.0),
+                  borderSide: const BorderSide(
+                    color: Colors.black87,
+                    width: 2.0,
+                  ),
                 ),
               ),
               obscureText: true,
@@ -595,21 +648,21 @@ class _AuthScreenState extends State<AuthScreen> {
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  side: const BorderSide(color: Colors.black87, width: 1.0),
-                  backgroundColor: highlightColor,
-                  foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      side: const BorderSide(color: Colors.black87, width: 1.0),
+                      backgroundColor: highlightColor,
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(_isLoginMode ? 'Đăng nhập' : 'Đăng ký'),
                   ),
                 ),
-                child: Text(_isLoginMode ? 'Đăng nhập' : 'Đăng ký'),
-              ),
-            ),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -623,7 +676,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -638,7 +694,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -653,7 +712,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -670,7 +732,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 });
               },
               child: Text(
-                _isLoginMode ? 'Chưa có tài khoản? Đăng ký' : 'Đã có tài khoản? Đăng nhập',
+                _isLoginMode
+                    ? 'Chưa có tài khoản? Đăng ký'
+                    : 'Đã có tài khoản? Đăng nhập',
                 style: const TextStyle(color: Colors.black87),
               ),
             ),

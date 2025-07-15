@@ -529,7 +529,7 @@ class _BeatScreenState extends State<BeatScreen> {
 
     if (theme.isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Vui lòng nhập chủ đề')));
+          .showSnackBar(const SnackBar(content: Text('Vui lòng nhập phong cách và thể loại')));
       return;
     }
 
@@ -647,7 +647,7 @@ class _BeatScreenState extends State<BeatScreen> {
     final description = _descriptionController.text.trim();
     final lyrics = _songLyricsController.text.trim();
 
-    if (description.isEmpty && lyrics.isEmpty) {
+    if (description.trim().isEmpty || lyrics.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập mô tả hoặc lời bài hát')),
       );
@@ -1278,7 +1278,7 @@ class _BeatScreenState extends State<BeatScreen> {
                             ),
                           ),
                           child: Text(
-                            'Tạo bài hát',
+                            'Tạo Bài Hát',
                             style: GoogleFonts.beVietnamPro(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
